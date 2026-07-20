@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { db } from '../db/db'
+import { ensureFemaleRoutinesSeeded } from '../db/seed'
 import { useAppStore } from '../store/useAppStore'
 import { ACTIVITY_LABELS, GOAL_LABELS } from '../lib/metrics'
 import type { ActivityLevel, Goal, Sex } from '../types'
@@ -63,6 +64,9 @@ export function ProfileSetup() {
       date: new Date().toISOString().slice(0, 10),
       weightKg: data.weightKg,
     })
+    if (sex === 'F') {
+      await ensureFemaleRoutinesSeeded()
+    }
     setActiveProfileId(newId)
     navigate('/home')
   }

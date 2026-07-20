@@ -1,8 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Camera } from 'lucide-react'
 import { db } from '../db/db'
-import { resizeImageToBlob } from '../lib/image'
 
 interface ExercisePhotoProps {
   exerciseId: number
@@ -10,8 +9,8 @@ interface ExercisePhotoProps {
 
 export function ExercisePhoto({ exerciseId }: ExercisePhotoProps) {
   const photo = useLiveQuery(() => db.exercisePhotos.get(exerciseId), [exerciseId])
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const [objectUrl, setObjectUrl] = useState<string | null>(null)
+  const [expanded, setExpanded] = useState(false)
 
   useEffect(() => {
     if (!photo) {
@@ -23,21 +22,13 @@ export function ExercisePhoto({ exerciseId }: ExercisePhotoProps) {
     return () => URL.revokeObjectURL(url)
   }, [photo])
 
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    e.target.value = ''
-    if (!file) return
-    const blob = await resizeImageToBlob(file)
-    await db.exercisePhotos.put({ exerciseId, blob, updatedAt: new Date().toISOString() })
-  }
-
   return (
-    <div className="relative">
+    <>
       <button
         type="button"
-        onClick={() => fileInputRef.current?.click()}
+        onClick={() => objectUrl && setExpanded(true)}
         className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-surface-2 text-text-muted"
-        aria-label="Agregar foto del ejercicio"
+        aria-label={objectUrl ? 'Ver foto en grande' : 'Sin foto'}
       >
         {objectUrl ? (
           <img src={objectUrl} alt="" className="h-full w-full object-cover" />
@@ -45,14 +36,15 @@ export function ExercisePhoto({ exerciseId }: ExercisePhotoProps) {
           <Camera size={18} />
         )}
       </button>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        hidden
-        onChange={handleFileChange}
-      />
-    </div>
+
+      {expanded && objectUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-6"
+          onClick={() => setExpanded(false)}
+        >
+          <img src={objectUrl} alt="" className="max-h-full max-w-full rounded-xl object-contain" />
+        </div>
+      )}
+    </>
   )
 }

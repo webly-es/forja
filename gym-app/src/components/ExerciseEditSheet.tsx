@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Trash2 } from 'lucide-react'
 import { db } from '../db/db'
+import { resizeImageToBlob } from '../lib/image'
 import { ExercisePhoto } from './ExercisePhoto'
 import type { Exercise } from '../types'
 
@@ -15,6 +16,7 @@ export function ExerciseEditSheet({ exercise, onClose }: ExerciseEditSheetProps)
   const [muscleGroup, setMuscleGroup] = useState(exercise?.muscleGroup ?? '')
   const [confirmingDeleteExercise, setConfirmingDeleteExercise] = useState(false)
   const [confirmingDeletePhoto, setConfirmingDeletePhoto] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const muscleGroups = useLiveQuery(
     () => db.exercises.toArray().then((all) => [...new Set(all.map((e) => e.muscleGroup))].sort()),
@@ -56,6 +58,14 @@ export function ExerciseEditSheet({ exercise, onClose }: ExerciseEditSheetProps)
     setConfirmingDeletePhoto(false)
   }
 
+  async function handlePhotoFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file || !exercise?.id) return
+    const blob = await resizeImageToBlob(file)
+    await db.exercisePhotos.put({ exerciseId: exercise.id, blob, updatedAt: new Date().toISOString() })
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 sm:items-center sm:px-6">
       <div className="w-full max-w-sm rounded-t-2xl border border-border bg-surface p-6 sm:rounded-2xl">
@@ -64,8 +74,22 @@ export function ExerciseEditSheet({ exercise, onClose }: ExerciseEditSheetProps)
         {exercise?.id && (
           <div className="mt-4 flex items-center gap-3">
             <ExercisePhoto exerciseId={exercise.id} />
-            <div className="flex flex-col gap-1">
-              <span className="text-xs text-text-muted">Toca la foto para cambiarla</span>
+            <div className="flex flex-col items-start gap-1">
+              <span className="text-xs text-text-muted">Toca la foto para verla en grande</span>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="text-left text-xs text-accent hover:underline"
+              >
+                {photo ? 'Cambiar foto' : 'Agregar foto'}
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                hidden
+                onChange={handlePhotoFileChange}
+              />
               {photo &&
                 (confirmingDeletePhoto ? (
                   <div className="flex items-center gap-2">
