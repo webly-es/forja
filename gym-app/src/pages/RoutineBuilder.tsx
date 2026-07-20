@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, ArrowUp, ArrowDown, X, Trash2 } from 'lucide-react'
 import { db } from '../db/db'
+import { deleteRoutine } from '../db/queries'
 import { groupByMuscle } from '../lib/exercises'
 import type { RoutineExercise } from '../types'
 
@@ -74,10 +75,7 @@ export function RoutineBuilder() {
 
   async function handleDelete() {
     if (!editingId) return
-    await db.transaction('rw', db.routines, db.routineExercises, async () => {
-      await db.routineExercises.where('routineId').equals(editingId).delete()
-      await db.routines.delete(editingId)
-    })
+    await deleteRoutine(editingId)
     navigate('/workout/start')
   }
 
