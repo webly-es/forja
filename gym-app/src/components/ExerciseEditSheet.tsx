@@ -13,12 +13,18 @@ interface ExerciseEditSheetProps {
 export function ExerciseEditSheet({ exercise, onClose }: ExerciseEditSheetProps) {
   const [name, setName] = useState(exercise?.name ?? '')
   const [muscleGroup, setMuscleGroup] = useState(exercise?.muscleGroup ?? '')
-  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [confirmingDeleteExercise, setConfirmingDeleteExercise] = useState(false)
+  const [confirmingDeletePhoto, setConfirmingDeletePhoto] = useState(false)
 
   const muscleGroups = useLiveQuery(
     () => db.exercises.toArray().then((all) => [...new Set(all.map((e) => e.muscleGroup))].sort()),
     [],
     [],
+  )
+
+  const photo = useLiveQuery(
+    () => (exercise?.id ? db.exercisePhotos.get(exercise.id) : undefined),
+    [exercise?.id],
   )
 
   const canSave = name.trim() !== '' && muscleGroup.trim() !== ''
@@ -34,7 +40,7 @@ export function ExerciseEditSheet({ exercise, onClose }: ExerciseEditSheetProps)
     onClose()
   }
 
-  async function handleDelete() {
+  async function handleDeleteExercise() {
     if (!exercise?.id) return
     await db.transaction('rw', db.exercises, db.routineExercises, db.exercisePhotos, async () => {
       await db.routineExercises.where('exerciseId').equals(exercise.id!).delete()
@@ -42,6 +48,12 @@ export function ExerciseEditSheet({ exercise, onClose }: ExerciseEditSheetProps)
       await db.exercises.delete(exercise.id!)
     })
     onClose()
+  }
+
+  async function handleDeletePhoto() {
+    if (!exercise?.id) return
+    await db.exercisePhotos.delete(exercise.id)
+    setConfirmingDeletePhoto(false)
   }
 
   return (
@@ -52,7 +64,31 @@ export function ExerciseEditSheet({ exercise, onClose }: ExerciseEditSheetProps)
         {exercise?.id && (
           <div className="mt-4 flex items-center gap-3">
             <ExercisePhoto exerciseId={exercise.id} />
-            <span className="text-xs text-text-muted">Toca la foto para cambiarla o borrarla</span>
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-text-muted">Toca la foto para cambiarla</span>
+              {photo &&
+                (confirmingDeletePhoto ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-text">¿Borrar la foto?</span>
+                    <button
+                      onClick={() => setConfirmingDeletePhoto(false)}
+                      className="text-xs text-text-muted"
+                    >
+                      No
+                    </button>
+                    <button onClick={handleDeletePhoto} className="text-xs font-medium text-danger">
+                      Sí, borrar
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmingDeletePhoto(true)}
+                    className="text-left text-xs text-danger hover:underline"
+                  >
+                    Borrar foto
+                  </button>
+                ))}
+            </div>
           </div>
         )}
 
@@ -103,21 +139,21 @@ export function ExerciseEditSheet({ exercise, onClose }: ExerciseEditSheetProps)
 
         {exercise && (
           <div className="mt-3">
-            {confirmingDelete ? (
+            {confirmingDeleteExercise ? (
               <div className="flex items-center justify-between rounded-lg border border-danger/40 bg-danger/10 p-3">
                 <span className="text-xs text-text">¿Borrar este ejercicio del catálogo?</span>
                 <div className="flex gap-2">
-                  <button onClick={() => setConfirmingDelete(false)} className="text-xs text-text-muted">
+                  <button onClick={() => setConfirmingDeleteExercise(false)} className="text-xs text-text-muted">
                     No
                   </button>
-                  <button onClick={handleDelete} className="text-xs font-medium text-danger">
+                  <button onClick={handleDeleteExercise} className="text-xs font-medium text-danger">
                     Sí, borrar
                   </button>
                 </div>
               </div>
             ) : (
               <button
-                onClick={() => setConfirmingDelete(true)}
+                onClick={() => setConfirmingDeleteExercise(true)}
                 className="flex w-full items-center justify-center gap-2 rounded-lg py-2 text-xs text-danger hover:underline"
               >
                 <Trash2 size={14} />

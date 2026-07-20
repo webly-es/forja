@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Camera, Trash2 } from 'lucide-react'
+import { Camera } from 'lucide-react'
 import { db } from '../db/db'
 import { resizeImageToBlob } from '../lib/image'
 
@@ -31,11 +31,6 @@ export function ExercisePhoto({ exerciseId }: ExercisePhotoProps) {
     await db.exercisePhotos.put({ exerciseId, blob, updatedAt: new Date().toISOString() })
   }
 
-  async function handleDelete(e: React.MouseEvent) {
-    e.stopPropagation()
-    await db.exercisePhotos.delete(exerciseId)
-  }
-
   return (
     <div className="relative">
       <button
@@ -50,16 +45,6 @@ export function ExercisePhoto({ exerciseId }: ExercisePhotoProps) {
           <Camera size={18} />
         )}
       </button>
-      {photo && (
-        <button
-          type="button"
-          onClick={handleDelete}
-          aria-label="Borrar foto"
-          className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-danger text-bg"
-        >
-          <Trash2 size={11} />
-        </button>
-      )}
       <input
         ref={fileInputRef}
         type="file"
