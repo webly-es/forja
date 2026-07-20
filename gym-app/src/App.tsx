@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
-import { ensureSeeded } from './db/seed'
+import { ensureExercisesSeeded } from './db/seed'
+import { ensureExercisePhotosSeeded } from './db/seedPhotos'
 import { useAppStore } from './store/useAppStore'
 import { AppShell } from './components/AppShell'
 import { RequireProfile } from './components/RequireProfile'
@@ -9,6 +10,8 @@ import { ProfileSetup } from './pages/ProfileSetup'
 import { Home } from './pages/Home'
 import { StartWorkout } from './pages/StartWorkout'
 import { ActiveWorkout } from './pages/ActiveWorkout'
+import { Exercises } from './pages/Exercises'
+import { RoutineBuilder } from './pages/RoutineBuilder'
 import { History } from './pages/History'
 import { HistoryDetail } from './pages/HistoryDetail'
 import { CardioDetail } from './pages/CardioDetail'
@@ -20,7 +23,10 @@ function App() {
   const activeProfileId = useAppStore((s) => s.activeProfileId)
 
   useEffect(() => {
-    ensureSeeded().then(() => setReady(true))
+    ensureExercisesSeeded().then(() => {
+      setReady(true)
+      void ensureExercisePhotosSeeded()
+    })
   }, [])
 
   if (!ready) return null
@@ -38,6 +44,9 @@ function App() {
           <Route element={<AppShell />}>
             <Route path="/home" element={<Home />} />
             <Route path="/workout/start" element={<StartWorkout />} />
+            <Route path="/workout/routines/new" element={<RoutineBuilder />} />
+            <Route path="/workout/routines/:routineId/edit" element={<RoutineBuilder />} />
+            <Route path="/exercises" element={<Exercises />} />
             <Route path="/history" element={<History />} />
             <Route path="/history/:sessionId" element={<HistoryDetail />} />
             <Route path="/history/cardio/:sessionId" element={<CardioDetail />} />

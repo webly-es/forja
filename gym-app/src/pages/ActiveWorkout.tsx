@@ -27,17 +27,14 @@ export function ActiveWorkout() {
   const exercises = useLiveQuery(
     () =>
       session
-        ? db.exercises
-            .where('routineKey')
-            .equals(session.routineKey)
-            .toArray()
-            .then((all) =>
-              all
-                .filter((ex) => !ex.profileScope || ex.profileScope === profile?.sex)
-                .sort((a, b) => a.order - b.order),
-            )
+        ? db.routineExercises
+            .where('routineId')
+            .equals(session.routineId)
+            .sortBy('order')
+            .then((links) => db.exercises.bulkGet(links.map((l) => l.exerciseId)))
+            .then((list) => list.filter((ex): ex is Exercise => ex != null))
         : Promise.resolve<Exercise[]>([]),
-    [session, profile],
+    [session],
   )
 
   function handleSetLogged() {

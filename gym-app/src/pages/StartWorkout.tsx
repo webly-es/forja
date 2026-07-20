@@ -6,7 +6,7 @@ import { useAppStore } from '../store/useAppStore'
 import { estimateMet } from '../lib/met'
 import { estimateCalories } from '../lib/calories'
 import { WorkoutFinishSummary } from '../components/WorkoutFinishSummary'
-import { ChevronRight, HeartPulse } from 'lucide-react'
+import { ChevronRight, HeartPulse, Plus, Pencil } from 'lucide-react'
 
 type Mode = 'strength' | 'cardio'
 
@@ -24,21 +24,23 @@ export function StartWorkout() {
 
   const profile = useLiveQuery(() => db.profiles.get(activeProfileId), [activeProfileId])
   const routines = useLiveQuery(() => db.routines.toArray(), [], [])
-  const exerciseCounts = useLiveQuery(async () => {
-    const all = await db.exercises.toArray()
-    const counts: Record<string, number> = {}
-    for (const ex of all) {
-      if (ex.profileScope && ex.profileScope !== profile?.sex) continue
-      counts[ex.routineKey] = (counts[ex.routineKey] ?? 0) + 1
-    }
-    return counts
-  }, [profile], {} as Record<string, number>)
+  const exerciseCounts = useLiveQuery(
+    async () => {
+      const links = await db.routineExercises.toArray()
+      const counts: Record<number, number> = {}
+      for (const link of links) {
+        counts[link.routineId] = (counts[link.routineId] ?? 0) + 1
+      }
+      return counts
+    },
+    [],
+    {} as Record<number, number>,
+  )
 
-  async function startRoutine(routineId: number, routineKey: string, routineName: string) {
+  async function startRoutine(routineId: number, routineName: string) {
     const sessionId = (await db.workoutSessions.add({
       profileId: activeProfileId,
       routineId,
-      routineKey: routineKey as never,
       routineName,
       startedAt: new Date().toISOString(),
     })) as number
@@ -95,20 +97,38 @@ export function StartWorkout() {
 
       {mode === 'strength' ? (
         <div className="flex flex-col gap-3">
+          <button
+            onClick={() => navigate('/workout/routines/new')}
+            className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm text-text-muted hover:border-accent hover:text-accent"
+          >
+            <Plus size={16} />
+            Crear rutina
+          </button>
           {routines?.map((r) => (
-            <button
+            <div
               key={r.id}
-              onClick={() => startRoutine(r.id!, r.key, r.name)}
-              className="flex items-center justify-between rounded-xl border border-border bg-surface p-4 text-left transition-colors hover:border-accent"
+              className="flex items-center gap-2 rounded-xl border border-border bg-surface p-4 transition-colors hover:border-accent"
             >
-              <div>
-                <div className="font-medium text-text">{r.name}</div>
-                <div className="mt-0.5 text-xs text-text-muted">
-                  {exerciseCounts?.[r.key] ?? 0} ejercicios
+              <button
+                onClick={() => startRoutine(r.id!, r.name)}
+                className="flex flex-1 items-center justify-between text-left"
+              >
+                <div>
+                  <div className="font-medium text-text">{r.name}</div>
+                  <div className="mt-0.5 text-xs text-text-muted">
+                    {exerciseCounts?.[r.id!] ?? 0} ejercicios
+                  </div>
                 </div>
-              </div>
-              <ChevronRight size={20} className="text-text-muted" />
-            </button>
+                <ChevronRight size={20} className="text-text-muted" />
+              </button>
+              <button
+                onClick={() => navigate(`/workout/routines/${r.id}/edit`)}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-text-muted hover:text-text"
+                aria-label="Editar rutina"
+              >
+                <Pencil size={16} />
+              </button>
+            </div>
           ))}
         </div>
       ) : (

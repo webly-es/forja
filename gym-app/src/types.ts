@@ -23,28 +23,30 @@ export interface BodyWeightLog {
   weightKg: number
 }
 
-export type RoutineKey = 'chest-tri-shoulders' | 'back-biceps' | 'legs' | 'arms'
-
 export interface Exercise {
   id?: number
   name: string
   muscleGroup: string
-  routineKey: RoutineKey
   order: number
-  profileScope?: Sex // if set, only shown for that sex's profile
 }
 
 export interface Routine {
   id?: number
-  key: RoutineKey
+  key: string
   name: string
+}
+
+export interface RoutineExercise {
+  id?: number
+  routineId: number
+  exerciseId: number
+  order: number
 }
 
 export interface WorkoutSession {
   id?: number
   profileId: number
   routineId: number
-  routineKey: RoutineKey
   routineName: string
   startedAt: string // ISO datetime
   finishedAt?: string // ISO datetime

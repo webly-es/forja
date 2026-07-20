@@ -1,9 +1,10 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { Home, Dumbbell, History, LineChart, Settings } from 'lucide-react'
+import { Home, Dumbbell, History, LineChart, ListChecks, Settings } from 'lucide-react'
 
 const TABS = [
   { to: '/home', label: 'Inicio', icon: Home },
   { to: '/workout/start', label: 'Entrenar', icon: Dumbbell },
+  { to: '/exercises', label: 'Ejercicios', icon: ListChecks },
   { to: '/history', label: 'Historial', icon: History },
   { to: '/progress', label: 'Progreso', icon: LineChart },
   { to: '/settings', label: 'Ajustes', icon: Settings },

@@ -1,13 +1,11 @@
 import { db } from './db'
-import type { RoutineKey, Sex } from '../types'
 
 interface SeedExercise {
   name: string
   muscleGroup: string
-  profileScope?: Sex
 }
 
-const ROUTINES: { key: RoutineKey; name: string; exercises: SeedExercise[] }[] = [
+const ROUTINES: { key: string; name: string; exercises: SeedExercise[] }[] = [
   {
     key: 'chest-tri-shoulders',
     name: 'Pecho - Tríceps - Hombros',
@@ -15,6 +13,8 @@ const ROUTINES: { key: RoutineKey; name: string; exercises: SeedExercise[] }[] =
       { name: 'Press banca sentado empujando hacia delante', muscleGroup: 'Pecho' },
       { name: 'Press banca inclinado con mancuerna', muscleGroup: 'Pecho' },
       { name: 'Press banca inclinado en máquina', muscleGroup: 'Pecho' },
+      { name: 'Aperturas de pecho en máquina (Pec-Deck)', muscleGroup: 'Pecho' },
+      { name: 'Press de pecho en máquina vertical', muscleGroup: 'Pecho' },
       { name: 'Press de hombro en máquina', muscleGroup: 'Hombro' },
       { name: 'Press de hombro en máquina con algo de inclinación', muscleGroup: 'Hombro' },
       { name: 'Elevaciones laterales con mancuerna', muscleGroup: 'Hombro' },
@@ -30,7 +30,10 @@ const ROUTINES: { key: RoutineKey; name: string; exercises: SeedExercise[] }[] =
       { name: 'Máquina de espalda jalando abajo, agarre ancho', muscleGroup: 'Espalda' },
       { name: 'Máquina de espalda jalando abajo, agarre para dorsales', muscleGroup: 'Espalda' },
       { name: 'Máquina de espalda jalando de frente hacia la espalda', muscleGroup: 'Espalda' },
-      { name: 'Máquina de espalda jalando desde arriba (dorsales y espalda media)', muscleGroup: 'Espalda' },
+      {
+        name: 'Máquina de espalda jalando desde arriba (dorsales y espalda media)',
+        muscleGroup: 'Espalda',
+      },
       { name: 'Elevación de mancuernas para bíceps', muscleGroup: 'Bíceps' },
       { name: 'Elevación de mancuernas martillo para bíceps', muscleGroup: 'Bíceps' },
       { name: 'Predicador para bíceps en máquina', muscleGroup: 'Bíceps' },
@@ -46,8 +49,11 @@ const ROUTINES: { key: RoutineKey; name: string; exercises: SeedExercise[] }[] =
       { name: 'Curl femoral sentado en máquina', muscleGroup: 'Isquiotibiales' },
       { name: 'Aductores cerrando', muscleGroup: 'Aductores' },
       { name: 'Aductores abriendo', muscleGroup: 'Abductores' },
-      { name: 'Extensión de cuádriceps en máquina', muscleGroup: 'Cuádriceps', profileScope: 'F' },
-      { name: 'Empuje de cadera / patada de glúteo en máquina', muscleGroup: 'Glúteo', profileScope: 'F' },
+      { name: 'Extensión de cuádriceps en máquina', muscleGroup: 'Cuádriceps' },
+      { name: 'Empuje de cadera en máquina (Puente de glúteos)', muscleGroup: 'Glúteo' },
+      { name: 'Patada de glúteo en máquina', muscleGroup: 'Glúteo' },
+      { name: 'Elevación de talones en máquina de sentadillas (Power Squat)', muscleGroup: 'Gemelos' },
+      { name: 'Elevación de talones en máquina de prensa (Leg Press)', muscleGroup: 'Gemelos' },
     ],
   },
   {
@@ -67,22 +73,53 @@ const ROUTINES: { key: RoutineKey; name: string; exercises: SeedExercise[] }[] =
   },
 ]
 
-export async function ensureSeeded() {
-  await db.transaction('rw', db.routines, db.exercises, async () => {
-    const routineCount = await db.routines.count()
-    if (routineCount > 0) return
+// Exercises that changed name/meaning after the "no exclusive profile"
+// rework — matched and renamed in place (by old name) so existing logged
+// sets keep pointing at the same exerciseId.
+const RENAME_MAP: { from: string; to: string }[] = [
+  {
+    from: 'Empuje de cadera / patada de glúteo en máquina',
+    to: 'Empuje de cadera en máquina (Puente de glúteos)',
+  },
+]
+
+// Idempotent upsert-by-name: safe to call on every app start. Creates
+// whatever routines/exercises/links are missing without touching what
+// already exists, so future additions to ROUTINES reach devices that
+// were already seeded.
+export async function ensureExercisesSeeded() {
+  await db.transaction('rw', db.routines, db.exercises, db.routineExercises, async () => {
+    for (const rename of RENAME_MAP) {
+      const existing = await db.exercises.where('name').equals(rename.from).first()
+      if (existing) {
+        await db.exercises.update(existing.id!, { name: rename.to })
+      }
+    }
 
     for (const routine of ROUTINES) {
-      await db.routines.add({ key: routine.key, name: routine.name })
-      let order = 0
+      const existingRoutine = await db.routines.where('key').equals(routine.key).first()
+      const routineId = existingRoutine
+        ? existingRoutine.id!
+        : ((await db.routines.add({ key: routine.key, name: routine.name })) as number)
+
+      const existingLinks = await db.routineExercises.where('routineId').equals(routineId).toArray()
+      const linkedExerciseIds = new Set(existingLinks.map((l) => l.exerciseId))
+      let nextOrder = existingLinks.length
+
       for (const ex of routine.exercises) {
-        await db.exercises.add({
-          name: ex.name,
-          muscleGroup: ex.muscleGroup,
-          routineKey: routine.key,
-          order: order++,
-          profileScope: ex.profileScope,
-        })
+        const existingExercise = await db.exercises.where('name').equals(ex.name).first()
+        const exerciseId = existingExercise
+          ? existingExercise.id!
+          : ((await db.exercises.add({
+              name: ex.name,
+              muscleGroup: ex.muscleGroup,
+              order: nextOrder,
+            })) as number)
+
+        if (!linkedExerciseIds.has(exerciseId)) {
+          await db.routineExercises.add({ routineId, exerciseId, order: nextOrder })
+          nextOrder++
+        }
       }
     }
   })
