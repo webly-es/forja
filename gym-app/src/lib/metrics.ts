@@ -50,6 +50,7 @@ export const GOAL_LABELS: Record<Goal, string> = {
   lose: 'Perder grasa',
   maintain: 'Mantener',
   gain: 'Ganar músculo',
+  recomp: 'Ganar músculo y perder grasa (recomposición)',
 }
 
 export function getMaintenanceCalories(profile: Profile): number {
@@ -60,6 +61,7 @@ export function getTargetCalories(profile: Profile): number {
   const maintenance = getMaintenanceCalories(profile)
   if (profile.goal === 'lose') return maintenance - 450
   if (profile.goal === 'gain') return maintenance + 300
+  if (profile.goal === 'recomp') return maintenance - 150
   return maintenance
 }
 
@@ -71,7 +73,7 @@ export interface Macros {
 
 export function getMacros(profile: Profile): Macros {
   const calories = getTargetCalories(profile)
-  const proteinPerKg = profile.goal === 'lose' ? 2.2 : 1.9
+  const proteinPerKg = profile.goal === 'lose' || profile.goal === 'recomp' ? 2.2 : 1.9
   const proteinG = Math.round(profile.weightKg * proteinPerKg)
   const fatCalories = calories * 0.25
   const fatG = Math.round(fatCalories / 9)

@@ -2,7 +2,7 @@ export type Sex = 'M' | 'F'
 
 export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active'
 
-export type Goal = 'lose' | 'maintain' | 'gain'
+export type Goal = 'lose' | 'maintain' | 'gain' | 'recomp'
 
 export interface Profile {
   id?: number
