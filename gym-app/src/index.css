@@ -17,6 +17,8 @@
 
 html {
   color-scheme: dark;
+  overscroll-behavior: none;
+  touch-action: pan-y;
 }
 
 body {
@@ -25,7 +27,9 @@ body {
   color: var(--color-text);
   font-family: var(--font-sans);
   -webkit-tap-highlight-color: transparent;
-  overscroll-behavior-y: none;
+  overscroll-behavior: none;
+  touch-action: pan-y;
+  overflow-x: hidden;
 }
 
 #root {

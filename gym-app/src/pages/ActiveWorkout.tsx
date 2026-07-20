@@ -5,6 +5,8 @@ import { db } from '../db/db'
 import { useAppStore } from '../store/useAppStore'
 import { ExerciseCard } from '../components/ExerciseCard'
 import { RestTimer } from '../components/RestTimer'
+import { WorkoutFinishSummary } from '../components/WorkoutFinishSummary'
+import { MET_STRENGTH_TRAINING, estimateCalories } from '../lib/calories'
 import { ArrowLeft, Check } from 'lucide-react'
 import type { Exercise } from '../types'
 
@@ -18,6 +20,7 @@ export function ActiveWorkout() {
 
   const [restKey, setRestKey] = useState(0)
   const [restVisible, setRestVisible] = useState(false)
+  const [finished, setFinished] = useState<{ minutes: number; calories: number } | null>(null)
 
   const session = useLiveQuery(() => db.workoutSessions.get(id), [id])
   const profile = useLiveQuery(() => (session ? db.profiles.get(session.profileId) : undefined), [session])
@@ -43,9 +46,16 @@ export function ActiveWorkout() {
   }
 
   async function handleFinish() {
-    await db.workoutSessions.update(id, { finishedAt: new Date().toISOString() })
+    if (!session || !profile) return
+    const finishedAt = new Date().toISOString()
+    const durationMinutes = Math.max(
+      1,
+      Math.round((new Date(finishedAt).getTime() - new Date(session.startedAt).getTime()) / 60000),
+    )
+    const calories = estimateCalories(MET_STRENGTH_TRAINING, profile.weightKg, durationMinutes)
+    await db.workoutSessions.update(id, { finishedAt, caloriesBurned: calories })
     setActiveSessionId(null)
-    navigate(`/history/${id}`)
+    setFinished({ minutes: durationMinutes, calories })
   }
 
   if (!session || !exercises) return null
@@ -89,6 +99,16 @@ export function ActiveWorkout() {
           onFinish={() => setRestVisible(false)}
           onCancel={() => setRestVisible(false)}
           onChangeDefault={setRestDurationDefault}
+        />
+      )}
+
+      {finished && (
+        <WorkoutFinishSummary
+          title="Entrenamiento completado"
+          durationMinutes={finished.minutes}
+          calories={finished.calories}
+          onClose={() => navigate('/home')}
+          onViewDetail={() => navigate(`/history/${id}`)}
         />
       )}
     </div>

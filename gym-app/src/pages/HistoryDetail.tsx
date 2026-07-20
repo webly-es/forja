@@ -46,7 +46,10 @@ export function HistoryDetail() {
         </button>
         <div>
           <h1 className="text-lg font-medium text-text">{session.routineName}</h1>
-          <p className="text-xs text-text-muted">{formatDateTime(session.startedAt)}</p>
+          <p className="text-xs text-text-muted">
+            {formatDateTime(session.startedAt)}
+            {session.caloriesBurned != null && ` · ~${session.caloriesBurned} kcal`}
+          </p>
         </div>
       </div>
 

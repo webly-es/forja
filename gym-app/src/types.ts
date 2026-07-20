@@ -48,6 +48,7 @@ export interface WorkoutSession {
   routineName: string
   startedAt: string // ISO datetime
   finishedAt?: string // ISO datetime
+  caloriesBurned?: number
 }
 
 export interface SetLog {
@@ -60,4 +61,21 @@ export interface SetLog {
   reps: number
   restSeconds: number
   completedAt: string // ISO datetime
+}
+
+export interface CardioSession {
+  id?: number
+  profileId: number
+  activity: string
+  durationMinutes: number
+  met: number
+  caloriesBurned: number
+  date: string // ISO datetime
+  createdAt: string
+}
+
+export interface ExercisePhoto {
+  exerciseId: number
+  blob: Blob
+  updatedAt: string
 }

@@ -4,7 +4,15 @@ import { useNavigate } from 'react-router-dom'
 import { db } from '../db/db'
 import { useAppStore } from '../store/useAppStore'
 import { exportProfileData, importProfileData } from '../lib/exportImport'
-import { Pencil, Download, Upload, Users } from 'lucide-react'
+import { Pencil, Download, Upload, Users, RefreshCw } from 'lucide-react'
+
+const BUILD_TIME_LABEL = new Date(__APP_BUILD_TIME__).toLocaleString('es', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+})
 
 export function Settings() {
   const activeProfileId = useAppStore((s) => s.activeProfileId)!
@@ -15,6 +23,7 @@ export function Settings() {
   const profile = useLiveQuery(() => db.profiles.get(activeProfileId), [activeProfileId])
   const [todayWeight, setTodayWeight] = useState('')
   const [status, setStatus] = useState<string | null>(null)
+  const [checkingUpdate, setCheckingUpdate] = useState(false)
 
   async function logTodayWeight() {
     const weightKg = Number(todayWeight)
@@ -56,6 +65,17 @@ export function Settings() {
   function switchUser() {
     setActiveProfileId(null)
     navigate('/select')
+  }
+
+  async function handleUpdateCheck() {
+    setCheckingUpdate(true)
+    try {
+      const reg = await navigator.serviceWorker?.getRegistration()
+      await reg?.update()
+    } catch {
+      // sin service worker o sin conexión: igual recargamos abajo
+    }
+    window.location.reload()
   }
 
   if (!profile) return null
@@ -119,6 +139,21 @@ export function Settings() {
           Importar backup
         </button>
         <input ref={fileInputRef} type="file" accept="application/json" hidden onChange={handleImportFile} />
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-xs uppercase tracking-wide text-text-muted">App</h2>
+        <button
+          onClick={handleUpdateCheck}
+          disabled={checkingUpdate}
+          className="flex items-center gap-3 rounded-xl border border-border bg-surface p-4 text-left text-sm text-text hover:border-accent disabled:opacity-60"
+        >
+          <RefreshCw size={18} className={`text-text-muted ${checkingUpdate ? 'animate-spin' : ''}`} />
+          <div>
+            <div>Buscar actualización y recargar</div>
+            <div className="mt-0.5 text-xs text-text-muted">Versión instalada: {BUILD_TIME_LABEL}</div>
+          </div>
+        </button>
       </section>
 
       <button

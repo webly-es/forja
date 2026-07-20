@@ -11,6 +11,7 @@ import { StartWorkout } from './pages/StartWorkout'
 import { ActiveWorkout } from './pages/ActiveWorkout'
 import { History } from './pages/History'
 import { HistoryDetail } from './pages/HistoryDetail'
+import { CardioDetail } from './pages/CardioDetail'
 import { Progress } from './pages/Progress'
 import { Settings } from './pages/Settings'
 
@@ -39,6 +40,7 @@ function App() {
             <Route path="/workout/start" element={<StartWorkout />} />
             <Route path="/history" element={<History />} />
             <Route path="/history/:sessionId" element={<HistoryDetail />} />
+            <Route path="/history/cardio/:sessionId" element={<CardioDetail />} />
             <Route path="/progress" element={<Progress />} />
             <Route path="/settings" element={<Settings />} />
           </Route>
