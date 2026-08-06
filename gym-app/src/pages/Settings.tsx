@@ -71,7 +71,24 @@ export function Settings() {
     setCheckingUpdate(true)
     try {
       const reg = await navigator.serviceWorker?.getRegistration()
-      await reg?.update()
+      if (reg) {
+        await reg.update()
+        if (reg.installing || reg.waiting) {
+          // Hay una versión nueva instalándose: esperamos a que tome el
+          // control antes de recargar, si no, recargamos con el SW viejo
+          // todavía activo y parece que el botón no hizo nada.
+          await new Promise<void>((resolve) => {
+            let settled = false
+            const finish = () => {
+              if (settled) return
+              settled = true
+              resolve()
+            }
+            navigator.serviceWorker.addEventListener('controllerchange', finish, { once: true })
+            setTimeout(finish, 5000)
+          })
+        }
+      }
     } catch {
       // sin service worker o sin conexión: igual recargamos abajo
     }
