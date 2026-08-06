@@ -1,11 +1,54 @@
 import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { db } from '../db/db'
 import { useAppStore } from '../store/useAppStore'
 import type { Exercise } from '../types'
 
-const chartMargin = { top: 8, right: 12, bottom: 0, left: -20 }
+interface ProgressRow {
+  label: string
+  value: number
+  delta: number | null
+}
+
+function withDeltas(rows: { label: string; value: number }[]): ProgressRow[] {
+  return rows.map((row, i) => ({
+    ...row,
+    delta: i === 0 ? null : Math.round((row.value - rows[i - 1].value) * 10) / 10,
+  }))
+}
+
+function DeltaBadge({ delta }: { delta: number | null }) {
+  if (delta == null || delta === 0) return <span className="text-text-muted">—</span>
+  const positive = delta > 0
+  return (
+    <span className={positive ? 'text-emerald-500' : 'text-danger'}>
+      {positive ? '+' : ''}
+      {delta}
+    </span>
+  )
+}
+
+function ProgressTable({ rows, emptyMessage }: { rows: ProgressRow[]; emptyMessage: string }) {
+  if (rows.length === 0) {
+    return <p className="text-sm text-text-muted">{emptyMessage}</p>
+  }
+  return (
+    <div className="overflow-hidden rounded-xl border border-border bg-surface">
+      {rows.map((row, i) => (
+        <div
+          key={row.label + i}
+          className={`flex items-center justify-between px-4 py-3 text-sm ${i > 0 ? 'border-t border-border' : ''}`}
+        >
+          <span className="text-text-muted">{row.label}</span>
+          <div className="flex items-center gap-3">
+            <span className="font-medium text-text">{row.value} kg</span>
+            <DeltaBadge delta={row.delta} />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
 
 export function Progress() {
   const activeProfileId = useAppStore((s) => s.activeProfileId)!
@@ -17,12 +60,18 @@ export function Progress() {
         .equals(activeProfileId)
         .toArray()
         .then((logs) =>
-          logs
-            .sort((a, b) => a.date.localeCompare(b.date))
-            .map((l) => ({
-              label: new Date(l.date).toLocaleDateString('es', { day: 'numeric', month: 'short' }),
-              weight: l.weightKg,
-            })),
+          withDeltas(
+            logs
+              .sort((a, b) => a.date.localeCompare(b.date))
+              .map((l) => ({
+                label: new Date(l.date).toLocaleDateString('es', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                }),
+                value: l.weightKg,
+              })),
+          ).reverse(),
         ),
     [activeProfileId],
     [],
@@ -56,14 +105,16 @@ export function Progress() {
       if (s.weightKg > current) maxBySession.set(s.sessionId, s.weightKg)
     }
 
-    return [...maxBySession.entries()]
+    const rows = [...maxBySession.entries()]
       .map(([sessionId, weight]) => ({ date: sessionDateMap.get(sessionId), weight }))
       .filter((d): d is { date: string; weight: number } => !!d.date)
       .sort((a, b) => a.date.localeCompare(b.date))
       .map((d) => ({
-        label: new Date(d.date).toLocaleDateString('es', { day: 'numeric', month: 'short' }),
-        weight: d.weight,
+        label: new Date(d.date).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' }),
+        value: d.weight,
       }))
+
+    return withDeltas(rows).reverse()
   }, [activeProfileId, selectedExerciseId], [])
 
   return (
@@ -72,27 +123,7 @@ export function Progress() {
 
       <section>
         <h2 className="mb-3 text-xs uppercase tracking-wide text-text-muted">Peso corporal</h2>
-        {weightData.length < 2 ? (
-          <p className="text-sm text-text-muted">
-            Registra tu peso corporal más de una vez para ver la gráfica.
-          </p>
-        ) : (
-          <div className="h-56 rounded-xl border border-border bg-surface p-3">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={weightData} margin={chartMargin}>
-                <CartesianGrid stroke="#2a2a2a" vertical={false} />
-                <XAxis dataKey="label" stroke="#9b9b9b" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="#9b9b9b" fontSize={11} tickLine={false} axisLine={false} domain={['auto', 'auto']} />
-                <Tooltip
-                  contentStyle={{ background: '#1c1c1c', border: '1px solid #2a2a2a', borderRadius: 8 }}
-                  labelStyle={{ color: '#9b9b9b' }}
-                  itemStyle={{ color: '#f5f5f4' }}
-                />
-                <Line type="monotone" dataKey="weight" stroke="#c9973f" strokeWidth={2} dot={{ r: 3 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        )}
+        <ProgressTable rows={weightData} emptyMessage="Registra tu peso corporal para ver tu progreso aquí." />
       </section>
 
       <section>
@@ -116,27 +147,10 @@ export function Progress() {
               ))}
             </select>
 
-            {progression.length < 2 ? (
-              <p className="text-sm text-text-muted">
-                Necesitas al menos 2 sesiones con este ejercicio para ver la gráfica.
-              </p>
-            ) : (
-              <div className="h-56 rounded-xl border border-border bg-surface p-3">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={progression} margin={chartMargin}>
-                    <CartesianGrid stroke="#2a2a2a" vertical={false} />
-                    <XAxis dataKey="label" stroke="#9b9b9b" fontSize={11} tickLine={false} axisLine={false} />
-                    <YAxis stroke="#9b9b9b" fontSize={11} tickLine={false} axisLine={false} domain={['auto', 'auto']} />
-                    <Tooltip
-                      contentStyle={{ background: '#1c1c1c', border: '1px solid #2a2a2a', borderRadius: 8 }}
-                      labelStyle={{ color: '#9b9b9b' }}
-                      itemStyle={{ color: '#f5f5f4' }}
-                    />
-                    <Line type="monotone" dataKey="weight" stroke="#c9973f" strokeWidth={2} dot={{ r: 3 }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            )}
+            <ProgressTable
+              rows={progression}
+              emptyMessage="Registra series de este ejercicio para ver su progresión."
+            />
           </>
         )}
       </section>

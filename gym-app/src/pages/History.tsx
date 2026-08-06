@@ -1,4 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { db } from '../db/db'
 import { useAppStore } from '../store/useAppStore'
@@ -6,6 +7,15 @@ import { ChevronRight, Dumbbell, HeartPulse } from 'lucide-react'
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+function monthKey(iso: string) {
+  return iso.slice(0, 7) // YYYY-MM
+}
+
+function monthLabel(key: string) {
+  const label = new Date(`${key}-01T00:00:00`).toLocaleDateString('es', { month: 'short', year: 'numeric' })
+  return label.charAt(0).toUpperCase() + label.slice(1)
 }
 
 function formatDuration(start: string, end?: string) {
@@ -53,6 +63,20 @@ export function History() {
     return [...strengthItems, ...cardioItems].sort((a, b) => b.date.localeCompare(a.date))
   }, [activeProfileId], [] as HistoryItem[])
 
+  const months = [...new Set((items ?? []).map((item) => monthKey(item.date)))].sort((a, b) =>
+    b.localeCompare(a),
+  )
+
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (selectedMonth == null && months.length > 0) {
+      setSelectedMonth(months[0])
+    }
+  }, [months, selectedMonth])
+
+  const visibleItems = (items ?? []).filter((item) => monthKey(item.date) === selectedMonth)
+
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-semibold tracking-tight text-text">Historial</h1>
@@ -61,8 +85,26 @@ export function History() {
         <p className="text-sm text-text-muted">Aún no tienes entrenamientos registrados.</p>
       )}
 
+      {months.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {months.map((m) => (
+            <button
+              key={m}
+              onClick={() => setSelectedMonth(m)}
+              className={`shrink-0 rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                selectedMonth === m
+                  ? 'border-accent bg-accent-muted text-accent'
+                  : 'border-border bg-surface-2 text-text-muted hover:text-text'
+              }`}
+            >
+              {monthLabel(m)}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="flex flex-col gap-3">
-        {items?.map((item) => (
+        {visibleItems.map((item) => (
           <button
             key={`${item.type}-${item.id}`}
             onClick={() =>

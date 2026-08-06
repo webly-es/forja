@@ -3,6 +3,7 @@ import { X } from 'lucide-react'
 import { playRestEndBeep, vibrateRestEnd } from '../lib/sound'
 
 const PRESETS = [90, 120, 180]
+const TICK_MS = 250
 
 function formatTime(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60)
@@ -20,25 +21,54 @@ interface RestTimerProps {
 export function RestTimer({ initialSeconds, onFinish, onCancel, onChangeDefault }: RestTimerProps) {
   const [duration, setDuration] = useState(initialSeconds)
   const [remaining, setRemaining] = useState(initialSeconds)
+  const endsAtRef = useRef(Date.now() + initialSeconds * 1000)
   const finishedRef = useRef(false)
+  const [keyboardOffset, setKeyboardOffset] = useState(0)
 
+  // Timestamp-based countdown so the display stays correct even if the
+  // interval is throttled or the screen locks mid-rest.
   useEffect(() => {
-    if (remaining <= 0) {
-      if (!finishedRef.current) {
+    function recalc() {
+      const secondsLeft = Math.max(0, Math.round((endsAtRef.current - Date.now()) / 1000))
+      setRemaining(secondsLeft)
+      if (secondsLeft <= 0 && !finishedRef.current) {
         finishedRef.current = true
         playRestEndBeep()
         vibrateRestEnd()
       }
-      return
     }
-    const id = window.setInterval(() => {
-      setRemaining((r) => r - 1)
-    }, 1000)
-    return () => window.clearInterval(id)
-  }, [remaining])
+
+    recalc()
+    const id = window.setInterval(recalc, TICK_MS)
+    document.addEventListener('visibilitychange', recalc)
+    return () => {
+      window.clearInterval(id)
+      document.removeEventListener('visibilitychange', recalc)
+    }
+  }, [])
+
+  // Keep the bar pinned to the visible viewport bottom (visualViewport),
+  // not the full layout viewport, so it doesn't end up hidden behind the
+  // on-screen keyboard when a weight/reps input is focused.
+  useEffect(() => {
+    const vv = window.visualViewport
+    if (!vv) return
+    function updateOffset() {
+      const offset = window.innerHeight - (vv!.height + vv!.offsetTop)
+      setKeyboardOffset(Math.max(0, Math.round(offset)))
+    }
+    updateOffset()
+    vv.addEventListener('resize', updateOffset)
+    vv.addEventListener('scroll', updateOffset)
+    return () => {
+      vv.removeEventListener('resize', updateOffset)
+      vv.removeEventListener('scroll', updateOffset)
+    }
+  }, [])
 
   function applyPreset(seconds: number) {
     setDuration(seconds)
+    endsAtRef.current = Date.now() + seconds * 1000
     setRemaining(seconds)
     finishedRef.current = false
     onChangeDefault?.(seconds)
@@ -48,7 +78,10 @@ export function RestTimer({ initialSeconds, onFinish, onCancel, onChangeDefault 
   const isDone = remaining <= 0
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface/95 backdrop-blur px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 shadow-[0_-8px_24px_rgba(0,0,0,0.4)]">
+    <div
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface/95 backdrop-blur px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 shadow-[0_-8px_24px_rgba(0,0,0,0.4)]"
+      style={keyboardOffset > 0 ? { transform: `translateY(-${keyboardOffset}px)` } : undefined}
+    >
       <div className="mx-auto max-w-md">
         <div className="flex items-center justify-between">
           <span className="text-xs uppercase tracking-wide text-text-muted">Descanso</span>
