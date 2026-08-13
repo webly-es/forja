@@ -82,7 +82,6 @@ export function ExerciseEditSheet({ exercise, onClose }: ExerciseEditSheetProps)
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
-                capture="environment"
                 hidden
                 onChange={handlePhotoFileChange}
               />
