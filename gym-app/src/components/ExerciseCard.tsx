@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Check, Trash2 } from 'lucide-react'
 import { db } from '../db/db'
-import { deleteSetAndRenumber, getLastSetForExercise } from '../db/queries'
+import { deleteSetAndRenumber, getBestSetForExercise, getLastSetForExercise } from '../db/queries'
 import { SetLogger } from './SetLogger'
 import { ExercisePhoto } from './ExercisePhoto'
 import type { Exercise, SetLog } from '../types'
@@ -28,6 +28,11 @@ export function ExerciseCard({ exercise, profileId, sessionId, onSetLogged }: Ex
   const lastSet = useLiveQuery(
     () => getLastSetForExercise(profileId, exercise.id!, sessionId),
     [profileId, exercise.id, sessionId],
+  )
+
+  const bestSet = useLiveQuery(
+    () => getBestSetForExercise(profileId, exercise.id!),
+    [profileId, exercise.id],
   )
 
   const [editingSetId, setEditingSetId] = useState<number | null>(null)
@@ -61,11 +66,18 @@ export function ExerciseCard({ exercise, profileId, sessionId, onSetLogged }: Ex
             <span className="text-xs text-text-muted">{exercise.muscleGroup}</span>
           </div>
         </div>
-        {lastSet && (
-          <span className="shrink-0 rounded-full border border-border bg-surface-2 px-2.5 py-1 text-xs text-text-muted">
-            Última vez: {lastSet.weightKg}kg × {lastSet.reps}
-          </span>
-        )}
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          {lastSet && (
+            <span className="rounded-full border border-border bg-surface-2 px-2.5 py-1 text-xs text-text-muted">
+              Última vez: {lastSet.weightKg}kg × {lastSet.reps}
+            </span>
+          )}
+          {bestSet && (
+            <span className="rounded-full border border-accent-muted bg-accent-muted/40 px-2.5 py-1 text-xs text-accent">
+              Máximo: {bestSet.weightKg}kg × {bestSet.reps}
+            </span>
+          )}
+        </div>
       </div>
 
       {sets.length > 0 && (
