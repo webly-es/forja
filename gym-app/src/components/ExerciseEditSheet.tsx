@@ -24,14 +24,15 @@ export function ExerciseEditSheet({ exercise, onClose }: ExerciseEditSheetProps)
     [exercise?.id],
   )
 
-  // Deleting an exercise with logged sets would orphan them (the sets stay
-  // in db.sets pointing at an exerciseId that no longer resolves to
-  // anything, so they silently vanish from History and from the "última
-  // vez"/"máximo" badges) — so block it instead of losing training history.
-  const hasLoggedSets = useLiveQuery(
-    () => (exercise?.id ? db.sets.where('exerciseId').equals(exercise.id).count().then((c) => c > 0) : false),
+  // Deleting an exercise used to leave its logged sets behind pointing at an
+  // exerciseId that no longer resolves to anything, so they silently vanish
+  // from History and from the "última vez"/"máximo" badges. Now the delete
+  // always cascades to those sets too, so it's never a partial/orphaned
+  // state — but warn with the count first since it's real training history.
+  const loggedSetsCount = useLiveQuery(
+    () => (exercise?.id ? db.sets.where('exerciseId').equals(exercise.id).count() : 0),
     [exercise?.id],
-    false,
+    0,
   )
 
   const canSave = name.trim() !== '' && muscleGroup !== ''
@@ -50,9 +51,10 @@ export function ExerciseEditSheet({ exercise, onClose }: ExerciseEditSheetProps)
 
   async function handleDeleteExercise() {
     if (!exercise?.id) return
-    await db.transaction('rw', db.exercises, db.routineExercises, db.exercisePhotos, async () => {
+    await db.transaction('rw', db.exercises, db.routineExercises, db.exercisePhotos, db.sets, async () => {
       await db.routineExercises.where('exerciseId').equals(exercise.id!).delete()
       await db.exercisePhotos.delete(exercise.id!)
+      await db.sets.where('exerciseId').equals(exercise.id!).delete()
       await db.exercises.delete(exercise.id!)
     })
     onClose()
@@ -169,15 +171,14 @@ export function ExerciseEditSheet({ exercise, onClose }: ExerciseEditSheetProps)
 
         {exercise && (
           <div className="mt-3">
-            {hasLoggedSets ? (
-              <p className="rounded-lg border border-border bg-surface-2 p-3 text-center text-xs text-text-muted">
-                No se puede borrar: ya tiene series registradas. Quítalo de las rutinas donde no lo quieras usar
-                en vez de borrarlo.
-              </p>
-            ) : confirmingDeleteExercise ? (
-              <div className="flex items-center justify-between rounded-lg border border-danger/40 bg-danger/10 p-3">
-                <span className="text-xs text-text">¿Borrar este ejercicio del catálogo?</span>
-                <div className="flex gap-2">
+            {confirmingDeleteExercise ? (
+              <div className="flex flex-col gap-2 rounded-lg border border-danger/40 bg-danger/10 p-3">
+                <span className="text-xs text-text">
+                  {loggedSetsCount > 0
+                    ? `Este ejercicio tiene ${loggedSetsCount} ${loggedSetsCount === 1 ? 'serie registrada' : 'series registradas'}. Si lo borras, se pierde ese historial también. ¿Borrar de todas formas?`
+                    : '¿Borrar este ejercicio del catálogo?'}
+                </span>
+                <div className="flex justify-end gap-2">
                   <button onClick={() => setConfirmingDeleteExercise(false)} className="text-xs text-text-muted">
                     No
                   </button>
