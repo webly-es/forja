@@ -100,6 +100,17 @@ export async function deleteSetAndRenumber(sessionId: number, exerciseId: number
   })
 }
 
+export async function deleteWorkoutSession(sessionId: number) {
+  await db.transaction('rw', db.workoutSessions, db.sets, async () => {
+    await db.sets.where('sessionId').equals(sessionId).delete()
+    await db.workoutSessions.delete(sessionId)
+  })
+}
+
+export async function deleteCardioSession(sessionId: number) {
+  await db.cardioSessions.delete(sessionId)
+}
+
 export async function deleteRoutine(routineId: number) {
   await db.transaction('rw', db.routines, db.routineExercises, async () => {
     await db.routineExercises.where('routineId').equals(routineId).delete()

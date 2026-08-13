@@ -24,6 +24,16 @@ export function ExerciseEditSheet({ exercise, onClose }: ExerciseEditSheetProps)
     [exercise?.id],
   )
 
+  // Deleting an exercise with logged sets would orphan them (the sets stay
+  // in db.sets pointing at an exerciseId that no longer resolves to
+  // anything, so they silently vanish from History and from the "última
+  // vez"/"máximo" badges) — so block it instead of losing training history.
+  const hasLoggedSets = useLiveQuery(
+    () => (exercise?.id ? db.sets.where('exerciseId').equals(exercise.id).count().then((c) => c > 0) : false),
+    [exercise?.id],
+    false,
+  )
+
   const canSave = name.trim() !== '' && muscleGroup !== ''
 
   async function handleSave() {
@@ -159,7 +169,12 @@ export function ExerciseEditSheet({ exercise, onClose }: ExerciseEditSheetProps)
 
         {exercise && (
           <div className="mt-3">
-            {confirmingDeleteExercise ? (
+            {hasLoggedSets ? (
+              <p className="rounded-lg border border-border bg-surface-2 p-3 text-center text-xs text-text-muted">
+                No se puede borrar: ya tiene series registradas. Quítalo de las rutinas donde no lo quieras usar
+                en vez de borrarlo.
+              </p>
+            ) : confirmingDeleteExercise ? (
               <div className="flex items-center justify-between rounded-lg border border-danger/40 bg-danger/10 p-3">
                 <span className="text-xs text-text">¿Borrar este ejercicio del catálogo?</span>
                 <div className="flex gap-2">

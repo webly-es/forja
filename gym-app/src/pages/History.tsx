@@ -3,7 +3,8 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { db } from '../db/db'
 import { useAppStore } from '../store/useAppStore'
-import { ChevronRight, Dumbbell, HeartPulse } from 'lucide-react'
+import { deleteCardioSession, deleteWorkoutSession } from '../db/queries'
+import { ChevronRight, Dumbbell, HeartPulse, Trash2 } from 'lucide-react'
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -77,6 +78,17 @@ export function History() {
 
   const visibleItems = (items ?? []).filter((item) => monthKey(item.date) === selectedMonth)
 
+  const [confirmingDeleteKey, setConfirmingDeleteKey] = useState<string | null>(null)
+
+  async function handleDelete(item: HistoryItem) {
+    if (item.type === 'strength') {
+      await deleteWorkoutSession(item.id)
+    } else {
+      await deleteCardioSession(item.id)
+    }
+    setConfirmingDeleteKey(null)
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-semibold tracking-tight text-text">Historial</h1>
@@ -104,26 +116,59 @@ export function History() {
       )}
 
       <div className="flex flex-col gap-3">
-        {visibleItems.map((item) => (
-          <button
-            key={`${item.type}-${item.id}`}
-            onClick={() =>
-              navigate(item.type === 'strength' ? `/history/${item.id}` : `/history/cardio/${item.id}`)
-            }
-            className="flex items-center justify-between rounded-xl border border-border bg-surface p-4 text-left transition-colors hover:border-accent"
-          >
-            <div className="flex items-center gap-3">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-2 text-accent">
-                {item.type === 'strength' ? <Dumbbell size={15} /> : <HeartPulse size={15} />}
-              </span>
-              <div>
-                <div className="font-medium text-text">{item.title}</div>
-                <div className="mt-0.5 text-xs text-text-muted">{item.subtitle}</div>
-              </div>
+        {visibleItems.map((item) => {
+          const key = `${item.type}-${item.id}`
+          return (
+            <div key={key} className="rounded-xl border border-border bg-surface transition-colors hover:border-accent">
+              {confirmingDeleteKey === key ? (
+                <div className="flex items-center justify-between gap-3 p-4">
+                  <span className="text-sm text-text">¿Eliminar "{item.title}" del {item.subtitle.split(' · ')[0]}?</span>
+                  <div className="flex shrink-0 gap-2">
+                    <button
+                      onClick={() => setConfirmingDeleteKey(null)}
+                      className="rounded-lg border border-border px-3 py-1.5 text-xs text-text-muted"
+                    >
+                      No
+                    </button>
+                    <button
+                      onClick={() => handleDelete(item)}
+                      className="rounded-lg bg-danger px-3 py-1.5 text-xs font-medium text-bg"
+                    >
+                      Sí, eliminar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 p-4">
+                  <button
+                    onClick={() =>
+                      navigate(item.type === 'strength' ? `/history/${item.id}` : `/history/cardio/${item.id}`)
+                    }
+                    className="flex flex-1 items-center justify-between gap-3 text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-2 text-accent">
+                        {item.type === 'strength' ? <Dumbbell size={15} /> : <HeartPulse size={15} />}
+                      </span>
+                      <div>
+                        <div className="font-medium text-text">{item.title}</div>
+                        <div className="mt-0.5 text-xs text-text-muted">{item.subtitle}</div>
+                      </div>
+                    </div>
+                    <ChevronRight size={20} className="text-text-muted" />
+                  </button>
+                  <button
+                    onClick={() => setConfirmingDeleteKey(key)}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-text-muted hover:text-danger"
+                    aria-label="Eliminar entrenamiento"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              )}
             </div>
-            <ChevronRight size={20} className="text-text-muted" />
-          </button>
-        ))}
+          )
+        })}
       </div>
     </div>
   )
