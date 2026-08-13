@@ -4,7 +4,12 @@ import { useNavigate } from 'react-router-dom'
 import { db } from '../db/db'
 import { useAppStore } from '../store/useAppStore'
 import { exportProfileData, importProfileData } from '../lib/exportImport'
-import { Pencil, Download, Upload, Users, RefreshCw } from 'lucide-react'
+import { getOrphanedSetsSummary } from '../db/queries'
+import { Pencil, Download, Upload, Users, RefreshCw, AlertTriangle } from 'lucide-react'
+
+function formatShortDate(iso: string) {
+  return new Date(iso).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })
+}
 
 const BUILD_TIME_LABEL = new Date(__APP_BUILD_TIME__).toLocaleString('es', {
   day: 'numeric',
@@ -24,6 +29,8 @@ export function Settings() {
   const [todayWeight, setTodayWeight] = useState('')
   const [status, setStatus] = useState<string | null>(null)
   const [checkingUpdate, setCheckingUpdate] = useState(false)
+
+  const orphanedGroups = useLiveQuery(() => getOrphanedSetsSummary(activeProfileId), [activeProfileId])
 
   async function logTodayWeight() {
     const weightKg = Number(todayWeight)
@@ -172,6 +179,42 @@ export function Settings() {
           </div>
         </button>
       </section>
+
+      {orphanedGroups && orphanedGroups.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-xs uppercase tracking-wide text-text-muted">Diagnóstico</h2>
+          <div className="rounded-xl border border-danger/40 bg-danger/10 p-4">
+            <div className="flex items-start gap-2">
+              <AlertTriangle size={18} className="mt-0.5 shrink-0 text-danger" />
+              <div>
+                <div className="text-sm font-medium text-text">Series sin ejercicio asociado</div>
+                <p className="mt-1 text-xs text-text-muted">
+                  Estas series están guardadas pero apuntan a un ejercicio que ya no existe en el catálogo, así
+                  que no aparecen en el Historial ni en "Última vez"/"Máximo". Mándale esta lista a quien
+                  mantiene la app para recuperarlas.
+                </p>
+              </div>
+            </div>
+            <div className="mt-3 flex flex-col gap-2">
+              {orphanedGroups.map((g) => (
+                <div key={g.exerciseId} className="rounded-lg border border-border bg-surface-2 p-2.5 text-xs">
+                  <div className="text-text">
+                    ID de ejercicio {g.exerciseId} · {g.count} {g.count === 1 ? 'serie' : 'series'}
+                  </div>
+                  <div className="mt-0.5 text-text-muted">
+                    {formatShortDate(g.minDate)}
+                    {g.minDate !== g.maxDate && ` – ${formatShortDate(g.maxDate)}`} · {g.minWeight}
+                    {g.minWeight !== g.maxWeight && `–${g.maxWeight}`}kg
+                  </div>
+                  {g.routineNames.length > 0 && (
+                    <div className="mt-0.5 text-text-muted">Rutina: {g.routineNames.join(', ')}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       <button
         onClick={switchUser}
