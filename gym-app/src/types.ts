@@ -1,3 +1,5 @@
+import type { MuscleGroup } from './lib/muscleGroups'
+
 export type Sex = 'M' | 'F'
 
 export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active'
@@ -26,7 +28,7 @@ export interface BodyWeightLog {
 export interface Exercise {
   id?: number
   name: string
-  muscleGroup: string
+  muscleGroup: MuscleGroup
   order: number
 }
 

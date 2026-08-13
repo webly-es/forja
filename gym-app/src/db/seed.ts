@@ -1,8 +1,9 @@
 import { db } from './db'
+import type { MuscleGroup } from '../lib/muscleGroups'
 
 interface SeedExercise {
   name: string
-  muscleGroup: string
+  muscleGroup: MuscleGroup
 }
 
 const ROUTINES: { key: string; name: string; exercises: SeedExercise[] }[] = [
@@ -46,12 +47,12 @@ const ROUTINES: { key: string; name: string; exercises: SeedExercise[] }[] = [
       { name: 'Prensa', muscleGroup: 'Pierna' },
       { name: 'Sentadillas', muscleGroup: 'Pierna' },
       { name: 'Extensión de cuádriceps sentado en máquina', muscleGroup: 'Cuádriceps' },
-      { name: 'Curl femoral sentado en máquina', muscleGroup: 'Isquiotibiales' },
-      { name: 'Aductores cerrando', muscleGroup: 'Aductores' },
-      { name: 'Aductores abriendo', muscleGroup: 'Abductores' },
+      { name: 'Curl femoral sentado en máquina', muscleGroup: 'Femorales' },
+      { name: 'Aductores cerrando', muscleGroup: 'Pierna' },
+      { name: 'Aductores abriendo', muscleGroup: 'Pierna' },
       { name: 'Extensión de cuádriceps en máquina', muscleGroup: 'Cuádriceps' },
-      { name: 'Empuje de cadera en máquina (Puente de glúteos)', muscleGroup: 'Glúteo' },
-      { name: 'Patada de glúteo en máquina', muscleGroup: 'Glúteo' },
+      { name: 'Empuje de cadera en máquina (Puente de glúteos)', muscleGroup: 'Glúteos' },
+      { name: 'Patada de glúteo en máquina', muscleGroup: 'Glúteos' },
       { name: 'Elevación de talones en máquina de sentadillas (Power Squat)', muscleGroup: 'Gemelos' },
       { name: 'Elevación de talones en máquina de prensa (Leg Press)', muscleGroup: 'Gemelos' },
     ],
@@ -155,6 +156,16 @@ const RENAME_MAP: { from: string; to: string }[] = [
   },
 ]
 
+// Old free-text muscle group values (from before the fixed MUSCLE_GROUPS
+// list) mapped to their new fixed category, so exercises the user created
+// by hand under the old values get remapped too, not just the seed data.
+const MUSCLE_GROUP_RENAME_MAP: { from: string; to: MuscleGroup }[] = [
+  { from: 'Isquiotibiales', to: 'Femorales' },
+  { from: 'Aductores', to: 'Pierna' },
+  { from: 'Abductores', to: 'Pierna' },
+  { from: 'Glúteo', to: 'Glúteos' },
+]
+
 // Idempotent upsert-by-name: safe to call on every app start. Creates
 // whatever routines/exercises/links are missing without touching what
 // already exists, so future additions to ROUTINES reach devices that
@@ -165,6 +176,14 @@ export async function ensureExercisesSeeded() {
       const existing = await db.exercises.where('name').equals(rename.from).first()
       if (existing) {
         await db.exercises.update(existing.id!, { name: rename.to })
+      }
+    }
+
+    const allExercises = (await db.exercises.toArray()) as { id: number; muscleGroup: string }[]
+    for (const ex of allExercises) {
+      const remap = MUSCLE_GROUP_RENAME_MAP.find((m) => m.from === ex.muscleGroup)
+      if (remap) {
+        await db.exercises.update(ex.id, { muscleGroup: remap.to })
       }
     }
 

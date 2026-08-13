@@ -1,3 +1,4 @@
+import { MUSCLE_GROUPS } from './muscleGroups'
 import type { Exercise } from '../types'
 
 export function groupByMuscle(exercises: Exercise[]): [string, Exercise[]][] {
@@ -11,5 +12,5 @@ export function groupByMuscle(exercises: Exercise[]): [string, Exercise[]][] {
     .map(
       ([group, list]) => [group, list.sort((a, b) => a.name.localeCompare(b.name))] as [string, Exercise[]],
     )
-    .sort((a, b) => a[0].localeCompare(b[0]))
+    .sort((a, b) => MUSCLE_GROUPS.indexOf(a[0] as (typeof MUSCLE_GROUPS)[number]) - MUSCLE_GROUPS.indexOf(b[0] as (typeof MUSCLE_GROUPS)[number]))
 }

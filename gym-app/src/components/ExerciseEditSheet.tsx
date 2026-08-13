@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { Trash2 } from 'lucide-react'
 import { db } from '../db/db'
 import { resizeImageToBlob } from '../lib/image'
+import { MUSCLE_GROUPS, type MuscleGroup } from '../lib/muscleGroups'
 import { ExercisePhoto } from './ExercisePhoto'
 import type { Exercise } from '../types'
 
@@ -13,31 +14,26 @@ interface ExerciseEditSheetProps {
 
 export function ExerciseEditSheet({ exercise, onClose }: ExerciseEditSheetProps) {
   const [name, setName] = useState(exercise?.name ?? '')
-  const [muscleGroup, setMuscleGroup] = useState(exercise?.muscleGroup ?? '')
+  const [muscleGroup, setMuscleGroup] = useState<MuscleGroup | ''>(exercise?.muscleGroup ?? '')
   const [confirmingDeleteExercise, setConfirmingDeleteExercise] = useState(false)
   const [confirmingDeletePhoto, setConfirmingDeletePhoto] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-
-  const muscleGroups = useLiveQuery(
-    () => db.exercises.toArray().then((all) => [...new Set(all.map((e) => e.muscleGroup))].sort()),
-    [],
-    [],
-  )
 
   const photo = useLiveQuery(
     () => (exercise?.id ? db.exercisePhotos.get(exercise.id) : undefined),
     [exercise?.id],
   )
 
-  const canSave = name.trim() !== '' && muscleGroup.trim() !== ''
+  const canSave = name.trim() !== '' && muscleGroup !== ''
 
   async function handleSave() {
     if (!canSave) return
+    const group = muscleGroup as MuscleGroup
     if (exercise) {
-      await db.exercises.update(exercise.id!, { name: name.trim(), muscleGroup: muscleGroup.trim() })
+      await db.exercises.update(exercise.id!, { name: name.trim(), muscleGroup: group })
     } else {
       const count = await db.exercises.count()
-      await db.exercises.add({ name: name.trim(), muscleGroup: muscleGroup.trim(), order: count })
+      await db.exercises.add({ name: name.trim(), muscleGroup: group, order: count })
     }
     onClose()
   }
@@ -129,19 +125,20 @@ export function ExerciseEditSheet({ exercise, onClose }: ExerciseEditSheetProps)
           </div>
           <div>
             <label className="mb-1 block text-xs uppercase tracking-wide text-text-muted">Grupo muscular</label>
-            <input
-              type="text"
+            <select
               value={muscleGroup}
-              onChange={(e) => setMuscleGroup(e.target.value)}
+              onChange={(e) => setMuscleGroup(e.target.value as MuscleGroup)}
               className="input"
-              list="muscle-groups"
-              placeholder="Ej. Pecho"
-            />
-            <datalist id="muscle-groups">
-              {muscleGroups?.map((g) => (
-                <option key={g} value={g} />
+            >
+              <option value="" disabled>
+                Selecciona un grupo
+              </option>
+              {MUSCLE_GROUPS.map((g) => (
+                <option key={g} value={g}>
+                  {g}
+                </option>
               ))}
-            </datalist>
+            </select>
           </div>
         </div>
 
