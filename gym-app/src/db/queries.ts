@@ -1,5 +1,6 @@
 import { db } from './db'
 import type { SetLog } from '../types'
+import { addSeedTombstone, tombstoneKeys } from './seedTombstones'
 
 // Returns the first set (lowest setNumber) logged for this exercise in the
 // most recent session it appeared in — not just the most recently completed
@@ -59,7 +60,11 @@ export async function deleteCardioSession(sessionId: number) {
 }
 
 export async function deleteRoutine(routineId: number) {
-  await db.transaction('rw', db.routines, db.routineExercises, async () => {
+  await db.transaction('rw', db.routines, db.routineExercises, db.seedTombstones, async () => {
+    const routine = await db.routines.get(routineId)
+    if (routine) {
+      await addSeedTombstone(tombstoneKeys.routine(routine.key))
+    }
     await db.routineExercises.where('routineId').equals(routineId).delete()
     await db.routines.delete(routineId)
   })

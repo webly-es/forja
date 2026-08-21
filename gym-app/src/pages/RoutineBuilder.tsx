@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, ArrowUp, ArrowDown, X, Trash2 } from 'lucide-react'
 import { db } from '../db/db'
 import { deleteRoutine } from '../db/queries'
+import { addSeedTombstone, tombstoneKeys } from '../db/seedTombstones'
 import { groupByMuscle } from '../lib/exercises'
 import type { RoutineExercise } from '../types'
 
@@ -58,10 +59,21 @@ export function RoutineBuilder() {
 
   async function handleSave() {
     if (!canSave) return
-    await db.transaction('rw', db.routines, db.routineExercises, async () => {
+    await db.transaction('rw', db.routines, db.routineExercises, db.seedTombstones, async () => {
       let id = editingId
       if (id) {
         await db.routines.update(id, { name: name.trim() })
+        if (routine) {
+          const removedIds = (existingLinks ?? [])
+            .map((l) => l.exerciseId)
+            .filter((exId) => !selected.includes(exId))
+          for (const exId of removedIds) {
+            const exName = exercisesById.get(exId)?.name
+            if (exName) {
+              await addSeedTombstone(tombstoneKeys.link(routine.key, exName))
+            }
+          }
+        }
       } else {
         id = (await db.routines.add({ key: `custom-${Date.now()}`, name: name.trim() })) as number
       }

@@ -1,5 +1,6 @@
 import { db } from './db'
 import type { MuscleGroup } from '../lib/muscleGroups'
+import { isSeedTombstoned, tombstoneKeys } from './seedTombstones'
 
 interface SeedExercise {
   name: string
@@ -125,8 +126,10 @@ const FEMALE_ROUTINES: { key: string; name: string; exerciseNames: string[] }[] 
 // in the shared catalog (ensureExercisesSeeded always runs first on app
 // start, so lookups here should never miss).
 export async function ensureFemaleRoutinesSeeded() {
-  await db.transaction('rw', db.routines, db.exercises, db.routineExercises, async () => {
+  await db.transaction('rw', db.routines, db.exercises, db.routineExercises, db.seedTombstones, async () => {
     for (const routine of FEMALE_ROUTINES) {
+      if (await isSeedTombstoned(tombstoneKeys.routine(routine.key))) continue
+
       const existingRoutine = await db.routines.where('key').equals(routine.key).first()
       const routineId = existingRoutine
         ? existingRoutine.id!
@@ -137,6 +140,7 @@ export async function ensureFemaleRoutinesSeeded() {
       let nextOrder = existingLinks.length
 
       for (const exerciseName of routine.exerciseNames) {
+        if (await isSeedTombstoned(tombstoneKeys.link(routine.key, exerciseName))) continue
         const exercise = await db.exercises.where('name').equals(exerciseName).first()
         if (!exercise?.id || linkedExerciseIds.has(exercise.id)) continue
         await db.routineExercises.add({ routineId, exerciseId: exercise.id, order: nextOrder })
@@ -171,7 +175,7 @@ const MUSCLE_GROUP_RENAME_MAP: { from: string; to: MuscleGroup }[] = [
 // already exists, so future additions to ROUTINES reach devices that
 // were already seeded.
 export async function ensureExercisesSeeded() {
-  await db.transaction('rw', db.routines, db.exercises, db.routineExercises, async () => {
+  await db.transaction('rw', db.routines, db.exercises, db.routineExercises, db.seedTombstones, async () => {
     for (const rename of RENAME_MAP) {
       const existing = await db.exercises.where('name').equals(rename.from).first()
       if (existing) {
@@ -188,6 +192,8 @@ export async function ensureExercisesSeeded() {
     }
 
     for (const routine of ROUTINES) {
+      if (await isSeedTombstoned(tombstoneKeys.routine(routine.key))) continue
+
       const existingRoutine = await db.routines.where('key').equals(routine.key).first()
       const routineId = existingRoutine
         ? existingRoutine.id!
@@ -198,6 +204,9 @@ export async function ensureExercisesSeeded() {
       let nextOrder = existingLinks.length
 
       for (const ex of routine.exercises) {
+        if (await isSeedTombstoned(tombstoneKeys.exercise(ex.name))) continue
+        if (await isSeedTombstoned(tombstoneKeys.link(routine.key, ex.name))) continue
+
         const existingExercise = await db.exercises.where('name').equals(ex.name).first()
         const exerciseId = existingExercise
           ? existingExercise.id!

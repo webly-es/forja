@@ -83,3 +83,7 @@ export interface ExercisePhoto {
   blob: Blob
   updatedAt: string
 }
+
+export interface SeedTombstone {
+  key: string
+}

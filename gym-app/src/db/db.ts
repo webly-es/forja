@@ -9,6 +9,7 @@ import type {
   SetLog,
   CardioSession,
   ExercisePhoto,
+  SeedTombstone,
 } from '../types'
 
 export const db = new Dexie('gym-app') as Dexie & {
@@ -21,6 +22,7 @@ export const db = new Dexie('gym-app') as Dexie & {
   sets: EntityTable<SetLog, 'id'>
   cardioSessions: EntityTable<CardioSession, 'id'>
   exercisePhotos: EntityTable<ExercisePhoto, 'exerciseId'>
+  seedTombstones: EntityTable<SeedTombstone, 'key'>
 }
 
 db.version(1).stores({
@@ -73,3 +75,20 @@ db.version(3)
       }
     }
   })
+
+db.version(4).stores({
+  profiles: '++id, name',
+  bodyWeightLogs: '++id, profileId, date',
+  exercises: '++id, name, muscleGroup, order',
+  routines: '++id, key',
+  routineExercises: '++id, routineId, exerciseId, order',
+  workoutSessions: '++id, profileId, routineId, startedAt',
+  sets: '++id, sessionId, profileId, exerciseId, completedAt',
+  cardioSessions: '++id, profileId, date',
+  exercisePhotos: 'exerciseId',
+  // Tracks user-deleted seed entities (routines, exercises, and
+  // routine<->exercise links from the hardcoded seed data) so
+  // ensureExercisesSeeded/ensureFemaleRoutinesSeeded never resurrect them
+  // on the next app start. See db/seedTombstones.ts for key format.
+  seedTombstones: 'key',
+})
