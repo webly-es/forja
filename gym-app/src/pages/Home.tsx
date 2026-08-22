@@ -47,20 +47,21 @@ export function Home() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="relative -mx-4 overflow-hidden px-4 pb-2 pt-4">
+      <div className="relative -mx-4 px-4 pb-2 pt-4">
         <div
-          className="pointer-events-none absolute -top-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full"
+          className="pointer-events-none absolute -top-16 left-1/2 h-80 w-80 -translate-x-1/2 rounded-full"
           style={{
-            background: 'radial-gradient(closest-side, rgba(201,151,63,0.16), rgba(201,151,63,0) 70%)',
-            filter: 'blur(24px)',
+            background: 'radial-gradient(closest-side, rgba(201,151,63,0.32), rgba(201,151,63,0) 70%)',
+            filter: 'blur(20px)',
           }}
           aria-hidden="true"
         />
         <div
-          className="pointer-events-none absolute inset-0 opacity-[0.05] mix-blend-overlay"
+          className="pointer-events-none absolute -inset-x-4 -inset-y-6 opacity-[0.07]"
           style={{
             backgroundImage:
               "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
+            mixBlendMode: 'screen',
           }}
           aria-hidden="true"
         />
