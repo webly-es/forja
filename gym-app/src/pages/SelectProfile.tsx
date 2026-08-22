@@ -61,7 +61,7 @@ export function SelectProfile() {
                   <div className="flex items-center gap-2 p-4">
                     <button
                       onClick={() => selectProfile(p.id!)}
-                      className="flex flex-1 items-center gap-4 text-left"
+                      className="flex flex-1 items-center gap-4 text-left transition-transform active:scale-[0.98]"
                     >
                       <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface-2 text-accent">
                         <User size={20} />
@@ -85,7 +85,7 @@ export function SelectProfile() {
 
           <button
             onClick={() => navigate('/setup')}
-            className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-4 text-sm text-text-muted transition-colors hover:border-accent hover:text-accent"
+            className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-4 text-sm text-text-muted transition-all hover:border-accent hover:text-accent active:scale-[0.97]"
           >
             <Plus size={18} />
             Crear perfil

@@ -6,6 +6,7 @@ import { db } from '../db/db'
 import { deleteRoutine } from '../db/queries'
 import { addSeedTombstone, tombstoneKeys } from '../db/seedTombstones'
 import { groupByMuscle } from '../lib/exercises'
+import { MuscleGroupAccordion } from '../components/MuscleGroupAccordion'
 import type { RoutineExercise } from '../types'
 
 export function RoutineBuilder() {
@@ -162,18 +163,18 @@ export function RoutineBuilder() {
 
       <div>
         <h2 className="mb-2 text-xs uppercase tracking-wide text-text-muted">Agregar del catálogo</h2>
-        <div className="flex flex-col gap-4">
-          {groups.map(([muscleGroup, list]) => (
-            <div key={muscleGroup}>
-              <h3 className="mb-1.5 text-xs text-text-muted">{muscleGroup}</h3>
-              <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1">
+          {groups.map(([muscleGroup, list]) => {
+            const hasSelection = list.some((ex) => selected.includes(ex.id!))
+            return (
+              <MuscleGroupAccordion key={muscleGroup} label={muscleGroup} count={list.length} defaultOpen={hasSelection}>
                 {list.map((ex) => {
                   const isSelected = selected.includes(ex.id!)
                   return (
                     <button
                       key={ex.id}
                       onClick={() => toggle(ex.id!)}
-                      className={`rounded-lg border p-2.5 text-left text-sm transition-colors ${
+                      className={`rounded-lg border p-2.5 text-left text-sm transition-colors active:scale-[0.98] ${
                         isSelected
                           ? 'border-accent bg-accent-muted/20 text-accent'
                           : 'border-border bg-surface text-text hover:border-accent'
@@ -183,16 +184,16 @@ export function RoutineBuilder() {
                     </button>
                   )
                 })}
-              </div>
-            </div>
-          ))}
+              </MuscleGroupAccordion>
+            )
+          })}
         </div>
       </div>
 
       <button
         onClick={handleSave}
         disabled={!canSave}
-        className="rounded-lg bg-accent py-3 text-sm font-medium text-bg transition-opacity disabled:opacity-30 hover:bg-accent-hover"
+        className="rounded-lg bg-accent py-3 text-sm font-medium text-bg transition-all disabled:opacity-30 hover:bg-accent-hover active:enabled:scale-[0.97]"
       >
         Guardar rutina
       </button>

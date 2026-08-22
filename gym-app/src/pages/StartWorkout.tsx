@@ -86,7 +86,7 @@ export function StartWorkout() {
       <div className="flex gap-2 rounded-xl border border-border bg-surface p-1">
         <button
           onClick={() => setMode('strength')}
-          className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors ${
+          className={`flex-1 rounded-lg py-2 text-sm font-medium transition-all active:scale-[0.97] ${
             mode === 'strength' ? 'bg-accent text-bg' : 'text-text-muted'
           }`}
         >
@@ -94,7 +94,7 @@ export function StartWorkout() {
         </button>
         <button
           onClick={() => setMode('cardio')}
-          className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors ${
+          className={`flex-1 rounded-lg py-2 text-sm font-medium transition-all active:scale-[0.97] ${
             mode === 'cardio' ? 'bg-accent text-bg' : 'text-text-muted'
           }`}
         >
@@ -106,7 +106,7 @@ export function StartWorkout() {
         <div className="flex flex-col gap-3">
           <button
             onClick={() => navigate('/workout/routines/new')}
-            className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm text-text-muted hover:border-accent hover:text-accent"
+            className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm text-text-muted transition-transform hover:border-accent hover:text-accent active:scale-[0.97]"
           >
             <Plus size={16} />
             Crear rutina
@@ -138,7 +138,7 @@ export function StartWorkout() {
                 <div className="flex items-center gap-2 p-4">
                   <button
                     onClick={() => startRoutine(r.id!, r.name)}
-                    className="flex flex-1 items-center justify-between text-left"
+                    className="flex flex-1 items-center justify-between text-left transition-transform active:scale-[0.98]"
                   >
                     <div>
                       <div className="font-medium text-text">{r.name}</div>
@@ -192,7 +192,7 @@ export function StartWorkout() {
             <button
               onClick={saveCardio}
               disabled={!canSaveCardio}
-              className="rounded-lg bg-accent py-2.5 text-sm font-medium text-bg transition-opacity disabled:opacity-30 hover:bg-accent-hover"
+              className="rounded-lg bg-accent py-2.5 text-sm font-medium text-bg transition-all disabled:opacity-30 hover:bg-accent-hover active:enabled:scale-[0.97]"
             >
               Guardar
             </button>

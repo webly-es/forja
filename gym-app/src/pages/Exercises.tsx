@@ -4,6 +4,7 @@ import { Plus, ChevronRight } from 'lucide-react'
 import { db } from '../db/db'
 import { ExercisePhoto } from '../components/ExercisePhoto'
 import { ExerciseEditSheet } from '../components/ExerciseEditSheet'
+import { MuscleGroupAccordion } from '../components/MuscleGroupAccordion'
 import { groupByMuscle } from '../lib/exercises'
 import type { Exercise } from '../types'
 
@@ -22,21 +23,20 @@ export function Exercises() {
         </div>
         <button
           onClick={() => setEditing('new')}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent text-bg hover:bg-accent-hover"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent text-bg hover:bg-accent-hover active:scale-[0.95]"
           aria-label="Agregar ejercicio"
         >
           <Plus size={20} />
         </button>
       </div>
 
-      {groups.map(([muscleGroup, list]) => (
-        <div key={muscleGroup}>
-          <h2 className="mb-2 text-xs uppercase tracking-wide text-text-muted">{muscleGroup}</h2>
-          <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1">
+        {groups.map(([muscleGroup, list]) => (
+          <MuscleGroupAccordion key={muscleGroup} label={muscleGroup} count={list.length}>
             {list.map((ex) => (
               <div
                 key={ex.id}
-                className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3"
+                className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3 transition-transform active:scale-[0.98]"
               >
                 <ExercisePhoto exerciseId={ex.id!} />
                 <button
@@ -48,9 +48,9 @@ export function Exercises() {
                 </button>
               </div>
             ))}
-          </div>
-        </div>
-      ))}
+          </MuscleGroupAccordion>
+        ))}
+      </div>
 
       {editing && (
         <ExerciseEditSheet exercise={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />
