@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useNavigate, useParams } from 'react-router-dom'
 import { db } from '../db/db'
+import { EditSetChip } from '../components/EditSetChip'
 import { ArrowLeft } from 'lucide-react'
 
 function formatDateTime(iso: string) {
@@ -32,6 +34,8 @@ export function HistoryDetail() {
       .filter((g) => g.exercise)
   }, [id])
 
+  const [editingSetId, setEditingSetId] = useState<number | null>(null)
+
   if (!session) return null
 
   return (
@@ -58,14 +62,20 @@ export function HistoryDetail() {
           <div key={g.exercise!.id} className="rounded-xl border border-border bg-surface p-4">
             <h3 className="font-medium text-text">{g.exercise!.name}</h3>
             <div className="mt-2 flex flex-wrap gap-2">
-              {g.sets.map((s) => (
-                <span
-                  key={s.id}
-                  className="rounded-md border border-border bg-surface-2 px-2 py-1 text-xs text-text-muted"
-                >
-                  {s.weightKg}kg × {s.reps}
-                </span>
-              ))}
+              {g.sets.map((s) =>
+                s.id === editingSetId ? (
+                  <EditSetChip key={s.id} set={s} onDone={() => setEditingSetId(null)} />
+                ) : (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => setEditingSetId(s.id!)}
+                    className="rounded-md border border-border bg-surface-2 px-2 py-1 text-xs text-text-muted"
+                  >
+                    {s.weightKg}kg × {s.reps}
+                  </button>
+                ),
+              )}
             </div>
           </div>
         ))}
