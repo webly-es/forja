@@ -34,7 +34,12 @@ export function Home() {
         .where('profileId')
         .equals(activeProfileId)
         .toArray()
-        .then((sessions) => sessions.sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0]),
+        .then(
+          (sessions) =>
+            sessions
+              .filter((s) => s.finishedAt)
+              .sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0],
+        ),
     [activeProfileId],
   )
 
