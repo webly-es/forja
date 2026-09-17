@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
+import { filterSetsFromFinishedSessions } from '../db/queries'
 import { useAppStore } from '../store/useAppStore'
 import type { Exercise } from '../types'
 
@@ -78,23 +79,20 @@ export function Progress() {
   )
 
   const exerciseOptions = useLiveQuery(async () => {
-    const sets = await db.sets.where('profileId').equals(activeProfileId).toArray()
+    const rawSets = await db.sets.where('profileId').equals(activeProfileId).toArray()
+    const sets = await filterSetsFromFinishedSessions(rawSets)
     const ids = [...new Set(sets.map((s) => s.exerciseId))]
     const exercises = await db.exercises.bulkGet(ids)
     return exercises.filter((e): e is Exercise => e != null)
   }, [activeProfileId], [])
 
-  const [selectedExerciseId, setSelectedExerciseId] = useState<number | null>(null)
-
-  useEffect(() => {
-    if (selectedExerciseId == null && exerciseOptions.length > 0) {
-      setSelectedExerciseId(exerciseOptions[0].id!)
-    }
-  }, [exerciseOptions, selectedExerciseId])
+  const [selectedExerciseIdOverride, setSelectedExerciseIdOverride] = useState<number | null>(null)
+  const selectedExerciseId = selectedExerciseIdOverride ?? exerciseOptions[0]?.id ?? null
 
   const progression = useLiveQuery(async () => {
     if (selectedExerciseId == null) return []
-    const sets = await db.sets.where({ profileId: activeProfileId, exerciseId: selectedExerciseId }).toArray()
+    const rawSets = await db.sets.where({ profileId: activeProfileId, exerciseId: selectedExerciseId }).toArray()
+    const sets = await filterSetsFromFinishedSessions(rawSets)
     const sessionIds = [...new Set(sets.map((s) => s.sessionId))]
     const sessions = await db.workoutSessions.bulkGet(sessionIds)
     const sessionDateMap = new Map(sessions.filter((s) => s != null).map((s) => [s!.id!, s!.startedAt]))
@@ -138,7 +136,7 @@ export function Progress() {
             <select
               className="input mb-3"
               value={selectedExerciseId ?? ''}
-              onChange={(e) => setSelectedExerciseId(Number(e.target.value))}
+              onChange={(e) => setSelectedExerciseIdOverride(Number(e.target.value))}
             >
               {exerciseOptions.map((ex) => (
                 <option key={ex!.id} value={ex!.id}>

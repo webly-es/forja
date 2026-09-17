@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { db } from '../db/db'
 import { useAppStore } from '../store/useAppStore'
@@ -68,13 +68,8 @@ export function History() {
     b.localeCompare(a),
   )
 
-  const [selectedMonth, setSelectedMonth] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (selectedMonth == null && months.length > 0) {
-      setSelectedMonth(months[0])
-    }
-  }, [months, selectedMonth])
+  const [selectedMonthOverride, setSelectedMonthOverride] = useState<string | null>(null)
+  const selectedMonth = selectedMonthOverride ?? months[0] ?? null
 
   const visibleItems = (items ?? []).filter((item) => monthKey(item.date) === selectedMonth)
 
@@ -102,7 +97,7 @@ export function History() {
           {months.map((m) => (
             <button
               key={m}
-              onClick={() => setSelectedMonth(m)}
+              onClick={() => setSelectedMonthOverride(m)}
               className={`shrink-0 rounded-full border px-3 py-1.5 text-sm transition-colors ${
                 selectedMonth === m
                   ? 'border-accent bg-accent-muted text-accent'

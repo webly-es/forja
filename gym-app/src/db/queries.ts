@@ -10,7 +10,7 @@ import { addSeedTombstone, tombstoneKeys } from './seedTombstones'
 // db.sets. Filtering them out here is what makes "Última vez"/"Máximo"
 // ignore those abandoned sessions instead of surfacing stray/mistaken
 // weights logged into a workout that was never actually completed.
-async function filterSetsFromFinishedSessions(
+export async function filterSetsFromFinishedSessions(
   sets: SetLog[],
   includeSessionId?: number,
 ): Promise<SetLog[]> {
