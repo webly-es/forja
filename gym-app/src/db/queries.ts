@@ -59,6 +59,34 @@ export async function getBestSetForExercise(
   return sets[0]
 }
 
+// Assigns setNumber inside the transaction (instead of trusting a
+// possibly-stale count computed at render time) so that saving two sets in
+// quick succession — routine when finishing an exercise with a dropset —
+// can never collide on the same setNumber.
+export async function addSet(params: {
+  sessionId: number
+  profileId: number
+  exerciseId: number
+  weightKg: number
+  reps: number
+}) {
+  return db.transaction('rw', db.sets, async () => {
+    const existing = await db.sets
+      .where({ sessionId: params.sessionId, exerciseId: params.exerciseId })
+      .count()
+    return db.sets.add({
+      sessionId: params.sessionId,
+      profileId: params.profileId,
+      exerciseId: params.exerciseId,
+      setNumber: existing + 1,
+      weightKg: params.weightKg,
+      reps: params.reps,
+      restSeconds: 0,
+      completedAt: new Date().toISOString(),
+    })
+  })
+}
+
 export async function deleteSetAndRenumber(sessionId: number, exerciseId: number, setId: number) {
   await db.transaction('rw', db.sets, async () => {
     await db.sets.delete(setId)

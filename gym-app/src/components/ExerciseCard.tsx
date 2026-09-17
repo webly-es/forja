@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import { getBestSetForExercise, getLastSetForExercise } from '../db/queries'
+import { addSet, getBestSetForExercise, getLastSetForExercise } from '../db/queries'
 import { SetLogger } from './SetLogger'
 import { ExercisePhoto } from './ExercisePhoto'
 import { EditSetChip } from './EditSetChip'
@@ -36,6 +36,7 @@ export function ExerciseCard({ exercise, profileId, sessionId, onSetLogged }: Ex
   )
 
   const [editingSetId, setEditingSetId] = useState<number | null>(null)
+  const [saving, setSaving] = useState(false)
 
   const sets = sessionSets ?? []
   const lastLoggedInSession = sets[sets.length - 1]
@@ -43,17 +44,13 @@ export function ExerciseCard({ exercise, profileId, sessionId, onSetLogged }: Ex
   const defaultReps = lastLoggedInSession?.reps ?? lastSet?.reps
 
   async function handleSaveSet(weightKg: number, reps: number) {
-    await db.sets.add({
-      sessionId,
-      profileId,
-      exerciseId: exercise.id!,
-      setNumber: sets.length + 1,
-      weightKg,
-      reps,
-      restSeconds: 0,
-      completedAt: new Date().toISOString(),
-    })
-    onSetLogged()
+    setSaving(true)
+    try {
+      await addSet({ sessionId, profileId, exerciseId: exercise.id!, weightKg, reps })
+      onSetLogged()
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -109,6 +106,7 @@ export function ExerciseCard({ exercise, profileId, sessionId, onSetLogged }: Ex
           defaultWeight={defaultWeight}
           defaultReps={defaultReps}
           onSave={handleSaveSet}
+          saving={saving}
         />
       </div>
     </div>

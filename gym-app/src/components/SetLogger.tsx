@@ -5,16 +5,17 @@ interface SetLoggerProps {
   defaultWeight?: number
   defaultReps?: number
   onSave: (weightKg: number, reps: number) => void
+  saving?: boolean
 }
 
-export function SetLogger({ setNumber, defaultWeight, defaultReps, onSave }: SetLoggerProps) {
+export function SetLogger({ setNumber, defaultWeight, defaultReps, onSave, saving }: SetLoggerProps) {
   const [weight, setWeight] = useState(defaultWeight != null ? String(defaultWeight) : '')
   const [reps, setReps] = useState(defaultReps != null ? String(defaultReps) : '')
 
   const canSave = weight.trim() !== '' && reps.trim() !== '' && Number(weight) >= 0 && Number(reps) > 0
 
   function handleSave() {
-    if (!canSave) return
+    if (!canSave || saving) return
     onSave(Number(weight), Number(reps))
   }
 
@@ -42,10 +43,10 @@ export function SetLogger({ setNumber, defaultWeight, defaultReps, onSave }: Set
       </div>
       <button
         onClick={handleSave}
-        disabled={!canSave}
+        disabled={!canSave || saving}
         className="shrink-0 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-bg transition-opacity disabled:opacity-30 hover:bg-accent-hover"
       >
-        Guardar
+        {saving ? 'Guardando…' : 'Guardar'}
       </button>
     </div>
   )
