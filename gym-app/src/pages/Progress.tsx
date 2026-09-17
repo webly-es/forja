@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { filterSetsFromFinishedSessions } from '../db/queries'
 import { useAppStore } from '../store/useAppStore'
+import { MEASUREMENT_TYPES, MEASUREMENT_LABELS, type MeasurementType } from '../lib/measurements'
 import type { Exercise } from '../types'
 
 interface ProgressRow {
@@ -29,7 +30,15 @@ function DeltaBadge({ delta }: { delta: number | null }) {
   )
 }
 
-function ProgressTable({ rows, emptyMessage }: { rows: ProgressRow[]; emptyMessage: string }) {
+function ProgressTable({
+  rows,
+  emptyMessage,
+  unit = 'kg',
+}: {
+  rows: ProgressRow[]
+  emptyMessage: string
+  unit?: string
+}) {
   if (rows.length === 0) {
     return <p className="text-sm text-text-muted">{emptyMessage}</p>
   }
@@ -42,7 +51,9 @@ function ProgressTable({ rows, emptyMessage }: { rows: ProgressRow[]; emptyMessa
         >
           <span className="text-text-muted">{row.label}</span>
           <div className="flex items-center gap-3">
-            <span className="font-medium text-text">{row.value} kg</span>
+            <span className="font-medium text-text">
+              {row.value} {unit}
+            </span>
             <DeltaBadge delta={row.delta} />
           </div>
         </div>
@@ -89,6 +100,31 @@ export function Progress() {
   const [selectedExerciseIdOverride, setSelectedExerciseIdOverride] = useState<number | null>(null)
   const selectedExerciseId = selectedExerciseIdOverride ?? exerciseOptions[0]?.id ?? null
 
+  const [selectedMeasurementType, setSelectedMeasurementType] = useState<MeasurementType>('waist')
+
+  const measurementData = useLiveQuery(
+    () =>
+      db.bodyMeasurements
+        .where({ profileId: activeProfileId, type: selectedMeasurementType })
+        .toArray()
+        .then((logs) =>
+          withDeltas(
+            logs
+              .sort((a, b) => a.date.localeCompare(b.date))
+              .map((m) => ({
+                label: new Date(m.date).toLocaleDateString('es', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                }),
+                value: m.valueCm,
+              })),
+          ).reverse(),
+        ),
+    [activeProfileId, selectedMeasurementType],
+    [],
+  )
+
   const progression = useLiveQuery(async () => {
     if (selectedExerciseId == null) return []
     const rawSets = await db.sets.where({ profileId: activeProfileId, exerciseId: selectedExerciseId }).toArray()
@@ -116,12 +152,32 @@ export function Progress() {
   }, [activeProfileId, selectedExerciseId], [])
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-semibold tracking-tight text-text">Progreso</h1>
 
       <section>
         <h2 className="mb-3 text-xs uppercase tracking-wide text-text-muted">Peso corporal</h2>
         <ProgressTable rows={weightData} emptyMessage="Registra tu peso corporal para ver tu progreso aquí." />
+      </section>
+
+      <section>
+        <h2 className="mb-3 text-xs uppercase tracking-wide text-text-muted">Medidas corporales</h2>
+        <select
+          className="input mb-3"
+          value={selectedMeasurementType}
+          onChange={(e) => setSelectedMeasurementType(e.target.value as MeasurementType)}
+        >
+          {MEASUREMENT_TYPES.map((type) => (
+            <option key={type} value={type}>
+              {MEASUREMENT_LABELS[type]}
+            </option>
+          ))}
+        </select>
+        <ProgressTable
+          rows={measurementData}
+          emptyMessage="Registra esta medida en Ajustes para ver su progresión."
+          unit="cm"
+        />
       </section>
 
       <section>

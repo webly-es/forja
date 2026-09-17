@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { db } from '../db/db'
 import { useAppStore } from '../store/useAppStore'
 import { exportProfileData, importProfileData } from '../lib/exportImport'
+import { MEASUREMENT_TYPES, MEASUREMENT_LABELS } from '../lib/measurements'
 import { Pencil, Download, Upload, Users, RefreshCw } from 'lucide-react'
 
 const BUILD_TIME_LABEL = new Date(__APP_BUILD_TIME__).toLocaleString('es', {
@@ -22,6 +23,7 @@ export function Settings() {
 
   const profile = useLiveQuery(() => db.profiles.get(activeProfileId), [activeProfileId])
   const [todayWeight, setTodayWeight] = useState('')
+  const [todayMeasurements, setTodayMeasurements] = useState<Record<string, string>>({})
   const [status, setStatus] = useState<string | null>(null)
   const [checkingUpdate, setCheckingUpdate] = useState(false)
 
@@ -42,6 +44,32 @@ export function Settings() {
     await db.profiles.update(activeProfileId, { weightKg })
     setTodayWeight('')
     setStatus('Peso registrado')
+    setTimeout(() => setStatus(null), 2000)
+  }
+
+  async function logTodayMeasurements() {
+    const today = new Date().toISOString().slice(0, 10)
+    const entries = MEASUREMENT_TYPES.filter((type) => {
+      const raw = todayMeasurements[type]
+      return raw != null && raw.trim() !== '' && Number(raw) > 0
+    })
+    if (entries.length === 0) return
+
+    for (const type of entries) {
+      const valueCm = Number(todayMeasurements[type])
+      const existing = await db.bodyMeasurements
+        .where('profileId')
+        .equals(activeProfileId)
+        .and((m) => m.date === today && m.type === type)
+        .first()
+      if (existing) {
+        await db.bodyMeasurements.update(existing.id!, { valueCm })
+      } else {
+        await db.bodyMeasurements.add({ profileId: activeProfileId, date: today, type, valueCm })
+      }
+    }
+    setTodayMeasurements({})
+    setStatus('Medidas registradas')
     setTimeout(() => setStatus(null), 2000)
   }
 
@@ -120,7 +148,7 @@ export function Settings() {
       </section>
 
       <section>
-        <h2 className="mb-2 text-xs uppercase tracking-wide text-text-muted">Registrar peso de hoy</h2>
+        <h2 className="mb-3 text-xs uppercase tracking-wide text-text-muted">Registrar peso de hoy</h2>
         <div className="flex gap-2">
           <input
             type="number"
@@ -139,18 +167,43 @@ export function Settings() {
         </div>
       </section>
 
+      <section>
+        <h2 className="mb-3 text-xs uppercase tracking-wide text-text-muted">Medidas de hoy</h2>
+        <div className="grid grid-cols-2 gap-2">
+          {MEASUREMENT_TYPES.map((type) => (
+            <label key={type} className="flex flex-col gap-1">
+              <span className="text-xs text-text-muted">{MEASUREMENT_LABELS[type]}</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                placeholder="cm"
+                value={todayMeasurements[type] ?? ''}
+                onChange={(e) => setTodayMeasurements((prev) => ({ ...prev, [type]: e.target.value }))}
+                className="input"
+              />
+            </label>
+          ))}
+        </div>
+        <button
+          onClick={logTodayMeasurements}
+          className="mt-2 w-full rounded-lg bg-accent px-4 py-2 text-sm font-medium text-bg hover:bg-accent-hover"
+        >
+          Guardar medidas
+        </button>
+      </section>
+
       <section className="flex flex-col gap-3">
         <h2 className="text-xs uppercase tracking-wide text-text-muted">Datos</h2>
         <button
           onClick={handleExport}
-          className="flex items-center gap-3 rounded-xl border border-border bg-surface p-4 text-left text-sm text-text hover:border-accent"
+          className="flex items-center gap-3 rounded-xl border border-border bg-surface p-4 text-left text-sm text-text transition-colors hover:border-accent"
         >
           <Download size={18} className="text-text-muted" />
           Exportar mis datos (backup JSON)
         </button>
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="flex items-center gap-3 rounded-xl border border-border bg-surface p-4 text-left text-sm text-text hover:border-accent"
+          className="flex items-center gap-3 rounded-xl border border-border bg-surface p-4 text-left text-sm text-text transition-colors hover:border-accent"
         >
           <Upload size={18} className="text-text-muted" />
           Importar backup
@@ -163,7 +216,7 @@ export function Settings() {
         <button
           onClick={handleUpdateCheck}
           disabled={checkingUpdate}
-          className="flex items-center gap-3 rounded-xl border border-border bg-surface p-4 text-left text-sm text-text hover:border-accent disabled:opacity-60"
+          className="flex items-center gap-3 rounded-xl border border-border bg-surface p-4 text-left text-sm text-text transition-colors hover:border-accent disabled:opacity-30"
         >
           <RefreshCw size={18} className={`text-text-muted ${checkingUpdate ? 'animate-spin' : ''}`} />
           <div>
@@ -175,7 +228,7 @@ export function Settings() {
 
       <button
         onClick={switchUser}
-        className="flex items-center justify-center gap-2 rounded-xl border border-border py-3 text-sm text-text-muted hover:text-text"
+        className="flex items-center justify-center gap-2 rounded-xl border border-border py-3 text-sm text-text-muted transition-colors hover:text-text"
       >
         <Users size={16} />
         Cambiar de usuario

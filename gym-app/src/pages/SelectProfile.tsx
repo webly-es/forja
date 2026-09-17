@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { db } from '../db/db'
 import { deleteProfile } from '../db/queries'
 import { useAppStore } from '../store/useAppStore'
+import { ConfirmDeleteRow } from '../components/ConfirmDeleteRow'
 import { Plus, User, Trash2 } from 'lucide-react'
 
 export function SelectProfile() {
@@ -40,22 +41,12 @@ export function SelectProfile() {
                 className="rounded-xl border border-border bg-surface transition-colors hover:border-accent"
               >
                 {confirmingDeleteId === p.id ? (
-                  <div className="flex items-center justify-between gap-3 p-4">
-                    <span className="text-sm text-text">¿Eliminar a {p.name} y todo su historial?</span>
-                    <div className="flex shrink-0 gap-2">
-                      <button
-                        onClick={() => setConfirmingDeleteId(null)}
-                        className="rounded-lg border border-border px-3 py-1.5 text-xs text-text-muted"
-                      >
-                        No
-                      </button>
-                      <button
-                        onClick={() => handleDeleteProfile(p.id!)}
-                        className="rounded-lg bg-danger px-3 py-1.5 text-xs font-medium text-bg"
-                      >
-                        Sí, eliminar
-                      </button>
-                    </div>
+                  <div className="p-4">
+                    <ConfirmDeleteRow
+                      message={`¿Eliminar a ${p.name} y todo su historial?`}
+                      onCancel={() => setConfirmingDeleteId(null)}
+                      onConfirm={() => handleDeleteProfile(p.id!)}
+                    />
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 p-4">

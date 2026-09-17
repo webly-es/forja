@@ -131,13 +131,10 @@ export async function deleteRoutine(routineId: number) {
 export async function deleteProfile(profileId: number) {
   await db.transaction(
     'rw',
-    db.profiles,
-    db.bodyWeightLogs,
-    db.workoutSessions,
-    db.sets,
-    db.cardioSessions,
+    [db.profiles, db.bodyWeightLogs, db.bodyMeasurements, db.workoutSessions, db.sets, db.cardioSessions],
     async () => {
       await db.bodyWeightLogs.where('profileId').equals(profileId).delete()
+      await db.bodyMeasurements.where('profileId').equals(profileId).delete()
       await db.workoutSessions.where('profileId').equals(profileId).delete()
       await db.sets.where('profileId').equals(profileId).delete()
       await db.cardioSessions.where('profileId').equals(profileId).delete()

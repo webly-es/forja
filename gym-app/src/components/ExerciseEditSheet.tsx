@@ -6,6 +6,7 @@ import { addSeedTombstone, tombstoneKeys } from '../db/seedTombstones'
 import { resizeImageToBlob } from '../lib/image'
 import { MUSCLE_GROUPS, type MuscleGroup } from '../lib/muscleGroups'
 import { ExercisePhoto } from './ExercisePhoto'
+import { ConfirmDeleteRow } from './ConfirmDeleteRow'
 import type { Exercise } from '../types'
 
 interface ExerciseEditSheetProps {
@@ -182,20 +183,17 @@ export function ExerciseEditSheet({ exercise, onClose }: ExerciseEditSheetProps)
         {exercise && (
           <div className="mt-3">
             {confirmingDeleteExercise ? (
-              <div className="flex flex-col gap-2 rounded-lg border border-danger/40 bg-danger/10 p-3">
-                <span className="text-xs text-text">
-                  {loggedSetsCount > 0
-                    ? `Este ejercicio tiene ${loggedSetsCount} ${loggedSetsCount === 1 ? 'serie registrada' : 'series registradas'}. Si lo borras, se pierde ese historial también. ¿Borrar de todas formas?`
-                    : '¿Borrar este ejercicio del catálogo?'}
-                </span>
-                <div className="flex justify-end gap-2">
-                  <button onClick={() => setConfirmingDeleteExercise(false)} className="text-xs text-text-muted">
-                    No
-                  </button>
-                  <button onClick={handleDeleteExercise} className="text-xs font-medium text-danger">
-                    Sí, borrar
-                  </button>
-                </div>
+              <div className="rounded-xl border border-border bg-surface p-4">
+                <ConfirmDeleteRow
+                  message={
+                    loggedSetsCount > 0
+                      ? `Este ejercicio tiene ${loggedSetsCount} ${loggedSetsCount === 1 ? 'serie registrada' : 'series registradas'}. Si lo borras, se pierde ese historial también. ¿Borrar de todas formas?`
+                      : '¿Borrar este ejercicio del catálogo?'
+                  }
+                  onCancel={() => setConfirmingDeleteExercise(false)}
+                  onConfirm={handleDeleteExercise}
+                  confirmLabel="Sí, borrar"
+                />
               </div>
             ) : (
               <button

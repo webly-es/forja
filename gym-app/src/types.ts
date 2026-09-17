@@ -1,4 +1,5 @@
 import type { MuscleGroup } from './lib/muscleGroups'
+import type { MeasurementType } from './lib/measurements'
 
 export type Sex = 'M' | 'F'
 
@@ -23,6 +24,14 @@ export interface BodyWeightLog {
   profileId: number
   date: string // ISO yyyy-mm-dd
   weightKg: number
+}
+
+export interface BodyMeasurement {
+  id?: number
+  profileId: number
+  date: string // ISO yyyy-mm-dd
+  type: MeasurementType
+  valueCm: number
 }
 
 export interface Exercise {

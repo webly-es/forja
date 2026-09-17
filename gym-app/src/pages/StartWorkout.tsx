@@ -7,6 +7,7 @@ import { useAppStore } from '../store/useAppStore'
 import { estimateMet } from '../lib/met'
 import { estimateCalories } from '../lib/calories'
 import { WorkoutFinishSummary } from '../components/WorkoutFinishSummary'
+import { ConfirmDeleteRow } from '../components/ConfirmDeleteRow'
 import { ChevronRight, HeartPulse, Plus, Pencil, Trash2 } from 'lucide-react'
 
 type Mode = 'strength' | 'cardio'
@@ -117,22 +118,12 @@ export function StartWorkout() {
               className="rounded-xl border border-border bg-surface transition-colors hover:border-accent"
             >
               {confirmingDeleteRoutineId === r.id ? (
-                <div className="flex items-center justify-between gap-3 p-4">
-                  <span className="text-sm text-text">¿Eliminar "{r.name}"?</span>
-                  <div className="flex shrink-0 gap-2">
-                    <button
-                      onClick={() => setConfirmingDeleteRoutineId(null)}
-                      className="rounded-lg border border-border px-3 py-1.5 text-xs text-text-muted"
-                    >
-                      No
-                    </button>
-                    <button
-                      onClick={() => handleDeleteRoutine(r.id!)}
-                      className="rounded-lg bg-danger px-3 py-1.5 text-xs font-medium text-bg"
-                    >
-                      Sí, eliminar
-                    </button>
-                  </div>
+                <div className="p-4">
+                  <ConfirmDeleteRow
+                    message={`¿Eliminar "${r.name}"?`}
+                    onCancel={() => setConfirmingDeleteRoutineId(null)}
+                    onConfirm={() => handleDeleteRoutine(r.id!)}
+                  />
                 </div>
               ) : (
                 <div className="flex items-center gap-2 p-4">

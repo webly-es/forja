@@ -7,6 +7,7 @@ import { deleteRoutine } from '../db/queries'
 import { addSeedTombstone, tombstoneKeys } from '../db/seedTombstones'
 import { groupByMuscle } from '../lib/exercises'
 import { MuscleGroupAccordion } from '../components/MuscleGroupAccordion'
+import { ConfirmDeleteRow } from '../components/ConfirmDeleteRow'
 import type { RoutineExercise } from '../types'
 
 export function RoutineBuilder() {
@@ -122,7 +123,7 @@ export function RoutineBuilder() {
 
       {selected.length > 0 && (
         <div>
-          <h2 className="mb-2 text-xs uppercase tracking-wide text-text-muted">
+          <h2 className="mb-3 text-xs uppercase tracking-wide text-text-muted">
             Ejercicios elegidos ({selected.length})
           </h2>
           <div className="flex flex-col gap-2">
@@ -162,7 +163,7 @@ export function RoutineBuilder() {
       )}
 
       <div>
-        <h2 className="mb-2 text-xs uppercase tracking-wide text-text-muted">Agregar del catálogo</h2>
+        <h2 className="mb-3 text-xs uppercase tracking-wide text-text-muted">Agregar del catálogo</h2>
         <div className="flex flex-col gap-1">
           {groups.map(([muscleGroup, list]) => {
             const hasSelection = list.some((ex) => selected.includes(ex.id!))
@@ -201,16 +202,12 @@ export function RoutineBuilder() {
       {editingId && (
         <div>
           {confirmingDelete ? (
-            <div className="flex items-center justify-between rounded-lg border border-danger/40 bg-danger/10 p-3">
-              <span className="text-xs text-text">¿Eliminar esta rutina?</span>
-              <div className="flex gap-2">
-                <button onClick={() => setConfirmingDelete(false)} className="text-xs text-text-muted">
-                  No
-                </button>
-                <button onClick={handleDelete} className="text-xs font-medium text-danger">
-                  Sí, eliminar
-                </button>
-              </div>
+            <div className="rounded-xl border border-border bg-surface p-4">
+              <ConfirmDeleteRow
+                message="¿Eliminar esta rutina?"
+                onCancel={() => setConfirmingDelete(false)}
+                onConfirm={handleDelete}
+              />
             </div>
           ) : (
             <button

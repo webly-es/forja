@@ -2,6 +2,7 @@ import Dexie, { type EntityTable } from 'dexie'
 import type {
   Profile,
   BodyWeightLog,
+  BodyMeasurement,
   Exercise,
   Routine,
   RoutineExercise,
@@ -15,6 +16,7 @@ import type {
 export const db = new Dexie('gym-app') as Dexie & {
   profiles: EntityTable<Profile, 'id'>
   bodyWeightLogs: EntityTable<BodyWeightLog, 'id'>
+  bodyMeasurements: EntityTable<BodyMeasurement, 'id'>
   exercises: EntityTable<Exercise, 'id'>
   routines: EntityTable<Routine, 'id'>
   routineExercises: EntityTable<RoutineExercise, 'id'>
@@ -90,5 +92,19 @@ db.version(4).stores({
   // routine<->exercise links from the hardcoded seed data) so
   // ensureExercisesSeeded/ensureFemaleRoutinesSeeded never resurrect them
   // on the next app start. See db/seedTombstones.ts for key format.
+  seedTombstones: 'key',
+})
+
+db.version(5).stores({
+  profiles: '++id, name',
+  bodyWeightLogs: '++id, profileId, date',
+  bodyMeasurements: '++id, profileId, date, type',
+  exercises: '++id, name, muscleGroup, order',
+  routines: '++id, key',
+  routineExercises: '++id, routineId, exerciseId, order',
+  workoutSessions: '++id, profileId, routineId, startedAt',
+  sets: '++id, sessionId, profileId, exerciseId, completedAt',
+  cardioSessions: '++id, profileId, date',
+  exercisePhotos: 'exerciseId',
   seedTombstones: 'key',
 })

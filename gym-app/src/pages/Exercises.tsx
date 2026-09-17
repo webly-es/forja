@@ -23,7 +23,7 @@ export function Exercises() {
         </div>
         <button
           onClick={() => setEditing('new')}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent text-bg hover:bg-accent-hover active:scale-[0.95]"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent text-bg transition-transform hover:bg-accent-hover active:scale-[0.97]"
           aria-label="Agregar ejercicio"
         >
           <Plus size={20} />
@@ -36,7 +36,7 @@ export function Exercises() {
             {list.map((ex) => (
               <div
                 key={ex.id}
-                className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3 transition-transform active:scale-[0.98]"
+                className="flex items-center gap-3 rounded-xl border border-border bg-surface p-4 transition-transform active:scale-[0.98]"
               >
                 <ExercisePhoto exerciseId={ex.id!} />
                 <button
