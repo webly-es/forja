@@ -243,7 +243,7 @@ export function Settings() {
               value={keyDraft}
               onChange={(e) => setKeyDraft(e.target.value)}
               className="input"
-              placeholder="AIza…"
+              placeholder="Pega tu clave aquí"
             />
           </label>
           <label className="flex flex-col gap-1">
