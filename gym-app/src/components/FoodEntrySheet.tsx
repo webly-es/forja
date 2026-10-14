@@ -4,7 +4,7 @@ import { Camera, Sparkles, Trash2, X } from 'lucide-react'
 import { db } from '../db/db'
 import { useAppStore } from '../store/useAppStore'
 import { resizeImageToBlob } from '../lib/image'
-import { analyzeFoodPhoto } from '../lib/gemini'
+import { analyzeFood, type FoodAnalysis } from '../lib/gemini'
 import { MEAL_LABELS, MEAL_TYPES, mealForHour, type MealType } from '../lib/meals'
 import { ConfirmDeleteRow } from './ConfirmDeleteRow'
 import type { FoodEntry, FoodItem } from '../types'
@@ -14,6 +14,10 @@ interface FoodEntrySheetProps {
   date: string
   mode: 'photo' | 'manual'
   entry?: FoodEntry
+  // Analysis already done by the composer (text, voice or photo); the sheet opens in review.
+  initialAnalysis?: FoodAnalysis
+  initialPhoto?: File
+  initialNote?: string
   onClose: () => void
 }
 
@@ -49,17 +53,28 @@ function numberOrZero(raw: string): number {
   return Number.isFinite(n) && n > 0 ? n : 0
 }
 
-export function FoodEntrySheet({ profileId, date, mode, entry, onClose }: FoodEntrySheetProps) {
+export function FoodEntrySheet({
+  profileId,
+  date,
+  mode,
+  entry,
+  initialAnalysis,
+  initialPhoto,
+  initialNote,
+  onClose,
+}: FoodEntrySheetProps) {
   const navigate = useNavigate()
   const geminiApiKey = useAppStore((s) => s.geminiApiKey)
   const geminiModel = useAppStore((s) => s.geminiModel)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const usesItems = entry ? entry.items != null : mode === 'photo'
+  const usesItems = entry ? entry.items != null : mode === 'photo' || initialAnalysis != null
+  // Described by text or voice: there is no photo to show or re-analyse.
+  const fromDescription = initialAnalysis != null && initialPhoto == null
 
-  const [name, setName] = useState(entry?.name ?? '')
+  const [name, setName] = useState(entry?.name ?? initialAnalysis?.dishName ?? '')
   const [meal, setMeal] = useState<MealType>(entry?.meal ?? mealForHour(new Date().getHours()))
-  const [items, setItems] = useState<FoodItem[]>(entry?.items ?? [])
+  const [items, setItems] = useState<FoodItem[]>(entry?.items ?? initialAnalysis?.items ?? [])
   const [manual, setManual] = useState({
     kcal: entry && !entry.items ? String(entry.kcal) : '',
     proteinG: entry && !entry.items ? String(entry.proteinG || '') : '',
@@ -67,14 +82,18 @@ export function FoodEntrySheet({ profileId, date, mode, entry, onClose }: FoodEn
     fatG: entry && !entry.items ? String(entry.fatG || '') : '',
   })
 
-  const [note, setNote] = useState('')
-  const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [note, setNote] = useState(initialNote ?? '')
+  const [photoFile, setPhotoFile] = useState<File | null>(initialPhoto ?? null)
   const [thumbnail, setThumbnail] = useState<Blob | undefined>(entry?.photo)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [analyzing, setAnalyzing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
+
+  useEffect(() => {
+    if (initialPhoto) void resizeImageToBlob(initialPhoto, 320, 0.7).then(setThumbnail)
+  }, [initialPhoto])
 
   useEffect(() => {
     if (!thumbnail) {
@@ -101,7 +120,7 @@ export function FoodEntrySheet({ profileId, date, mode, entry, onClose }: FoodEn
     setError(null)
     try {
       const image = await resizeImageToBlob(photoFile, 1024, 0.8)
-      const result = await analyzeFoodPhoto(image, note, geminiApiKey, geminiModel)
+      const result = await analyzeFood({ image, text: note }, geminiApiKey, geminiModel)
       setItems(result.items)
       if (!name.trim()) setName(result.dishName)
     } catch (err) {
@@ -166,7 +185,7 @@ export function FoodEntrySheet({ profileId, date, mode, entry, onClose }: FoodEn
       <div className="max-h-[92dvh] w-full max-w-sm overflow-y-auto rounded-t-2xl border border-border bg-surface p-6 sm:rounded-2xl">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-text">
-            {entry ? 'Editar comida' : usesItems ? 'Foto del plato' : 'Añadir a mano'}
+            {entry ? 'Editar comida' : initialAnalysis ? 'Revisar comida' : usesItems ? 'Foto del plato' : 'Valores exactos'}
           </h2>
           <button onClick={onClose} className="text-text-muted hover:text-text" aria-label="Cerrar">
             <X size={20} />
@@ -175,40 +194,42 @@ export function FoodEntrySheet({ profileId, date, mode, entry, onClose }: FoodEn
 
         {usesItems && (
           <div className="mt-4 flex flex-col gap-3">
-            <div className="flex items-center gap-3">
-              {/* Whole row is the tap target while adding: the camera icon is what people reach for. */}
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={!!entry}
-                className="group flex flex-1 items-center gap-3 text-left disabled:cursor-default"
-              >
-                <div
-                  className={`flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-surface-2 transition-colors ${
-                    entry ? 'border-border text-text-muted' : 'border-accent-muted text-accent group-hover:border-accent'
-                  }`}
+            {(thumbnail || (!entry && !fromDescription)) && (
+              <div className="flex items-center gap-3">
+                {/* Whole row is the tap target while adding: the camera icon is what people reach for. */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={!!entry}
+                  className="group flex flex-1 items-center gap-3 text-left disabled:cursor-default"
                 >
-                  {previewUrl ? (
-                    <img src={previewUrl} alt="" className="h-full w-full object-cover" />
-                  ) : (
-                    <Camera size={26} />
+                  <div
+                    className={`flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-surface-2 transition-colors ${
+                      entry ? 'border-border text-text-muted' : 'border-accent-muted text-accent group-hover:border-accent'
+                    }`}
+                  >
+                    {previewUrl ? (
+                      <img src={previewUrl} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <Camera size={26} />
+                    )}
+                  </div>
+                  {!entry && (
+                    <span className="text-sm text-accent group-hover:underline">
+                      {photoFile ? 'Cambiar foto' : 'Hacer o elegir foto'}
+                    </span>
                   )}
-                </div>
-                {!entry && (
-                  <span className="text-sm text-accent group-hover:underline">
-                    {photoFile ? 'Cambiar foto' : 'Hacer o elegir foto'}
-                  </span>
-                )}
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                hidden
-                onChange={handlePhotoChange}
-              />
-            </div>
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  hidden
+                  onChange={handlePhotoChange}
+                />
+              </div>
+            )}
 
             {needsKey ? (
               <div className="rounded-xl border border-border bg-surface-2 p-4 text-sm text-text-muted">
@@ -218,7 +239,8 @@ export function FoodEntrySheet({ profileId, date, mode, entry, onClose }: FoodEn
                 </button>
               </div>
             ) : (
-              !entry && (
+              !entry &&
+              !fromDescription && (
                 <>
                   <input
                     type="text"

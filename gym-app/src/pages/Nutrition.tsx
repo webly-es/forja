@@ -6,12 +6,42 @@ import { useAppStore } from '../store/useAppStore'
 import { useDayBalance } from '../hooks/useDayBalance'
 import { getMacros, getTargetCalories } from '../lib/metrics'
 import { formatDateKey, shiftDateKey, todayKey } from '../lib/dates'
-import { MEAL_LABELS, MEAL_TYPES, mealForHour } from '../lib/meals'
+import { MEAL_LABELS, MEAL_TYPES, mealForHour, type MealType } from '../lib/meals'
+import type { FoodAnalysis } from '../lib/gemini'
 import { FoodEntrySheet } from '../components/FoodEntrySheet'
+import { FoodComposer } from '../components/FoodComposer'
+import { CalorieRing, MacroRing } from '../components/CalorieRing'
 import type { FoodEntry } from '../types'
-import { Camera, ChevronLeft, ChevronRight, ClipboardPaste, Footprints, PenLine, RotateCcw, Utensils } from 'lucide-react'
+import {
+  Apple,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardPaste,
+  Coffee,
+  Footprints,
+  Moon,
+  PenLine,
+  RotateCcw,
+  Sun,
+  Utensils,
+  type LucideIcon,
+} from 'lucide-react'
 
-type SheetState = { mode: 'photo' | 'manual'; entry?: FoodEntry } | null
+type SheetState = {
+  mode: 'photo' | 'manual'
+  entry?: FoodEntry
+  analysis?: FoodAnalysis
+  photo?: File
+  note?: string
+} | null
+
+const MEAL_ICONS: Record<MealType, LucideIcon> = {
+  breakfast: Coffee,
+  lunch: Sun,
+  dinner: Moon,
+  snack: Apple,
+}
 
 function FoodThumb({ photo }: { photo?: Blob }) {
   const [url, setUrl] = useState<string | null>(null)
@@ -32,28 +62,13 @@ function FoodThumb({ photo }: { photo?: Blob }) {
   )
 }
 
-function ProgressBar({ label, value, target, unit }: { label: string; value: number; target: number; unit: string }) {
-  const pct = target > 0 ? Math.min(100, (value / target) * 100) : 0
-  return (
-    <div>
-      <div className="flex items-baseline justify-between text-xs">
-        <span className="uppercase tracking-wide text-text-muted">{label}</span>
-        <span className="text-text">
-          {Math.round(value)} <span className="text-text-muted">/ {Math.round(target)} {unit}</span>
-        </span>
-      </div>
-      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-2">
-        <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${pct}%` }} />
-      </div>
-    </div>
-  )
-}
-
 export function Nutrition() {
   const activeProfileId = useAppStore((s) => s.activeProfileId)!
   const [dateKey, setDateKey] = useState(todayKey)
   const [sheet, setSheet] = useState<SheetState>(null)
   const [showRecent, setShowRecent] = useState(false)
+  const [showSpend, setShowSpend] = useState(false)
+  const [editingSteps, setEditingSteps] = useState(false)
   const [stepsDraft, setStepsDraft] = useState('')
   const [stepsStatus, setStepsStatus] = useState<string | null>(null)
 
@@ -86,11 +101,16 @@ export function Nutrition() {
   const macros = getMacros(profile)
   const balance = Math.round(day.consumed.kcal - day.energy.total)
 
+  function flashStepsStatus(message: string) {
+    setStepsStatus(message)
+    setTimeout(() => setStepsStatus(null), 3000)
+  }
+
   async function saveSteps(steps: number) {
     await setDailySteps(activeProfileId, dateKey, steps)
     setStepsDraft('')
-    setStepsStatus('Pasos guardados')
-    setTimeout(() => setStepsStatus(null), 2000)
+    setEditingSteps(false)
+    flashStepsStatus('Pasos guardados')
   }
 
   async function handlePasteSteps() {
@@ -98,14 +118,12 @@ export function Nutrition() {
       const text = await navigator.clipboard.readText()
       const steps = Number(text.replace(/[^\d]/g, ''))
       if (!steps) {
-        setStepsStatus('No hay un número de pasos en el portapapeles')
-        setTimeout(() => setStepsStatus(null), 3000)
+        flashStepsStatus('No hay un número de pasos en el portapapeles')
         return
       }
       await saveSteps(steps)
     } catch {
-      setStepsStatus('No se pudo leer el portapapeles. Escríbelos a mano.')
-      setTimeout(() => setStepsStatus(null), 3000)
+      flashStepsStatus('No se pudo leer el portapapeles. Escríbelos a mano.')
     }
   }
 
@@ -119,6 +137,8 @@ export function Nutrition() {
     })
     setShowRecent(false)
   }
+
+  const linkButton = 'flex items-center gap-1.5 text-xs transition-colors hover:text-accent'
 
   return (
     <div className="flex flex-col gap-6">
@@ -144,103 +164,69 @@ export function Nutrition() {
         </div>
       </div>
 
-      <section className="rounded-2xl border border-accent-muted/60 bg-gradient-to-b from-surface to-surface-2 p-4">
-        <div className="grid grid-cols-3 text-center">
+      <section className="rounded-2xl border border-accent-muted/60 bg-gradient-to-b from-surface to-surface-2 p-5">
+        <div className="flex justify-center">
+          <CalorieRing consumed={day.consumed.kcal} target={targetKcal} />
+        </div>
+
+        <div className="mt-5 grid grid-cols-3 text-center">
           <div>
-            <div className="text-xs uppercase tracking-wide text-text-muted">Consumido</div>
-            <div className="mt-1 text-xl font-semibold text-text">{Math.round(day.consumed.kcal)}</div>
+            <div className="text-[11px] uppercase tracking-wide text-text-muted">Consumido</div>
+            <div className="mt-0.5 text-lg font-semibold text-text">{Math.round(day.consumed.kcal)}</div>
           </div>
+          <button onClick={() => setShowSpend((v) => !v)} aria-expanded={showSpend}>
+            <div className="flex items-center justify-center gap-0.5 text-[11px] uppercase tracking-wide text-text-muted">
+              Gastado
+              <ChevronDown size={12} className={`transition-transform ${showSpend ? 'rotate-180' : ''}`} />
+            </div>
+            <div className="mt-0.5 text-lg font-semibold text-text">{day.energy.total}</div>
+          </button>
           <div>
-            <div className="text-xs uppercase tracking-wide text-text-muted">Gastado</div>
-            <div className="mt-1 text-xl font-semibold text-text">{day.energy.total}</div>
-          </div>
-          <div>
-            <div className="text-xs uppercase tracking-wide text-text-muted">{balance <= 0 ? 'Déficit' : 'Superávit'}</div>
-            <div className="mt-1 text-xl font-semibold text-accent">{Math.abs(balance)}</div>
+            <div className="text-[11px] uppercase tracking-wide text-text-muted">{balance <= 0 ? 'Déficit' : 'Superávit'}</div>
+            <div className="mt-0.5 text-lg font-semibold text-accent">{Math.abs(balance)}</div>
           </div>
         </div>
-        <div className="mt-4 grid grid-cols-4 gap-1 border-t border-border pt-3 text-center text-[11px] text-text-muted">
-          <div>
-            <div className="text-sm text-text">{day.energy.bmr}</div>
-            En reposo
+
+        {showSpend && (
+          <div className="mt-3 grid grid-cols-4 gap-1 rounded-xl bg-bg/40 py-2.5 text-center text-[11px] text-text-muted">
+            <div>
+              <div className="text-sm text-text">{day.energy.bmr}</div>
+              En reposo
+            </div>
+            <div>
+              <div className="text-sm text-text">{day.energy.strengthKcal}</div>
+              Gym
+            </div>
+            <div>
+              <div className="text-sm text-text">{day.energy.cardioKcal}</div>
+              Cardio
+            </div>
+            <div>
+              <div className="text-sm text-text">{day.energy.stepsKcal}</div>
+              Pasos
+            </div>
           </div>
-          <div>
-            <div className="text-sm text-text">{day.energy.strengthKcal}</div>
-            Gym
-          </div>
-          <div>
-            <div className="text-sm text-text">{day.energy.cardioKcal}</div>
-            Cardio
-          </div>
-          <div>
-            <div className="text-sm text-text">{day.energy.stepsKcal}</div>
-            Pasos
-          </div>
+        )}
+
+        <div className="mt-5 grid grid-cols-3 border-t border-border pt-5">
+          <MacroRing label="Proteína" value={day.consumed.proteinG} target={macros.proteinG} />
+          <MacroRing label="Carbos" value={day.consumed.carbsG} target={macros.carbsG} />
+          <MacroRing label="Grasa" value={day.consumed.fatG} target={macros.fatG} />
         </div>
       </section>
 
-      <section className="flex flex-col gap-3">
-        <ProgressBar label="Calorías" value={day.consumed.kcal} target={targetKcal} unit="kcal" />
-        <ProgressBar label="Proteína" value={day.consumed.proteinG} target={macros.proteinG} unit="g" />
-      </section>
-
-      <section className="rounded-xl border border-border bg-surface p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm text-text">
-            <Footprints size={16} className="text-text-muted" />
-            {day.steps > 0 ? `${day.steps.toLocaleString('es')} pasos` : 'Sin pasos registrados'}
-          </div>
-          <button
-            onClick={handlePasteSteps}
-            className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs text-text-muted transition-colors hover:text-text"
-          >
-            <ClipboardPaste size={14} />
-            Pegar pasos
+      <section>
+        <FoodComposer onAnalyzed={(analysis, photo, note) => setSheet({ mode: 'photo', analysis, photo, note })} />
+        <div className="mt-3 flex items-center justify-center gap-6 text-text-muted">
+          <button onClick={() => setShowRecent((v) => !v)} className={`${linkButton} ${showRecent ? 'text-accent' : ''}`}>
+            <RotateCcw size={13} />
+            Repetir reciente
+          </button>
+          <button onClick={() => setSheet({ mode: 'manual' })} className={linkButton}>
+            <PenLine size={13} />
+            Valores exactos
           </button>
         </div>
-        <div className="mt-3 flex gap-2">
-          <input
-            type="number"
-            inputMode="numeric"
-            placeholder="Escribir pasos"
-            value={stepsDraft}
-            onChange={(e) => setStepsDraft(e.target.value)}
-            className="input"
-          />
-          <button
-            onClick={() => Number(stepsDraft) >= 0 && stepsDraft !== '' && saveSteps(Math.round(Number(stepsDraft)))}
-            className="shrink-0 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-bg hover:bg-accent-hover"
-          >
-            Guardar
-          </button>
-        </div>
-        {stepsStatus && <p className="mt-2 text-xs text-accent">{stepsStatus}</p>}
-      </section>
-
-      <section className="grid grid-cols-3 gap-2">
-        <button
-          onClick={() => setSheet({ mode: 'photo' })}
-          className="flex flex-col items-center gap-1.5 rounded-xl bg-gradient-to-b from-accent-hover to-accent py-3 text-xs font-semibold text-bg transition-transform active:scale-[0.97]"
-        >
-          <Camera size={18} />
-          Foto del plato
-        </button>
-        <button
-          onClick={() => setSheet({ mode: 'manual' })}
-          className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-surface py-3 text-xs text-text transition-colors hover:border-accent"
-        >
-          <PenLine size={18} className="text-text-muted" />
-          Añadir a mano
-        </button>
-        <button
-          onClick={() => setShowRecent((v) => !v)}
-          className={`flex flex-col items-center gap-1.5 rounded-xl border bg-surface py-3 text-xs text-text transition-colors hover:border-accent ${
-            showRecent ? 'border-accent' : 'border-border'
-          }`}
-        >
-          <RotateCcw size={18} className="text-text-muted" />
-          Repetir
-        </button>
       </section>
 
       {showRecent && (
@@ -271,42 +257,97 @@ export function Nutrition() {
       {MEAL_TYPES.map((meal) => {
         const entries = day.entries.filter((e) => e.meal === meal)
         if (entries.length === 0) return null
-        const mealKcal = entries.reduce((sum, e) => sum + e.kcal, 0)
+        const Icon = MEAL_ICONS[meal]
+        const total = entries.reduce(
+          (acc, e) => ({ kcal: acc.kcal + e.kcal, p: acc.p + e.proteinG, c: acc.c + e.carbsG, f: acc.f + e.fatG }),
+          { kcal: 0, p: 0, c: 0, f: 0 },
+        )
         return (
-          <section key={meal}>
-            <div className="mb-3 flex items-baseline justify-between">
-              <h2 className="text-xs uppercase tracking-wide text-text-muted">{MEAL_LABELS[meal]}</h2>
-              <span className="text-xs text-text-muted">{mealKcal} kcal</span>
+          <section key={meal} className="overflow-hidden rounded-2xl border border-border bg-surface">
+            <div className="flex items-center gap-3 border-b border-border px-4 py-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent-muted/50 text-accent">
+                <Icon size={16} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium text-text">{MEAL_LABELS[meal]}</div>
+                <div className="text-[11px] text-text-muted">
+                  P {total.p} g · C {total.c} g · G {total.f} g
+                </div>
+              </div>
+              <div className="text-sm font-semibold text-accent">{total.kcal} kcal</div>
             </div>
-            <div className="overflow-hidden rounded-xl border border-border bg-surface">
-              {entries.map((e, i) => (
-                <button
-                  key={e.id}
-                  onClick={() => setSheet({ mode: e.items ? 'photo' : 'manual', entry: e })}
-                  className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-2 ${
-                    i > 0 ? 'border-t border-border' : ''
-                  }`}
-                >
-                  <FoodThumb photo={e.photo} />
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm text-text">{e.name}</div>
-                    <div className="text-xs text-text-muted">
-                      P {e.proteinG} g · C {e.carbsG} g · G {e.fatG} g
-                    </div>
+            {entries.map((e, i) => (
+              <button
+                key={e.id}
+                onClick={() => setSheet({ mode: e.items ? 'photo' : 'manual', entry: e })}
+                className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-2 ${
+                  i > 0 ? 'border-t border-border' : ''
+                }`}
+              >
+                <FoodThumb photo={e.photo} />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm text-text">{e.name}</div>
+                  <div className="text-xs text-text-muted">
+                    P {e.proteinG} g · C {e.carbsG} g · G {e.fatG} g
                   </div>
-                  <span className="text-sm font-medium text-text">{e.kcal}</span>
-                </button>
-              ))}
-            </div>
+                </div>
+                <span className="text-sm font-medium text-text">{e.kcal}</span>
+              </button>
+            ))}
           </section>
         )
       })}
 
       {day.entries.length === 0 && (
-        <p className="text-center text-sm text-text-muted">
-          {isToday ? 'Aún no has registrado comidas hoy.' : 'No hay comidas registradas este día.'}
-        </p>
+        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border px-6 py-8 text-center">
+          <Utensils size={22} className="text-accent" />
+          <p className="text-sm text-text">
+            {isToday ? 'Aún no has registrado comidas hoy' : 'No hay comidas registradas este día'}
+          </p>
+          <p className="text-xs text-text-muted">Escribe, habla o haz una foto y la IA calcula el resto.</p>
+        </div>
       )}
+
+      <section className="rounded-xl border border-border bg-surface px-4 py-3">
+        <div className="flex items-center gap-2">
+          <Footprints size={16} className="text-text-muted" />
+          <span className="flex-1 text-sm text-text">
+            {day.steps > 0 ? `${day.steps.toLocaleString('es')} pasos` : 'Sin pasos registrados'}
+          </span>
+          <button
+            onClick={handlePasteSteps}
+            className="flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-xs text-text-muted transition-colors hover:text-text"
+          >
+            <ClipboardPaste size={13} />
+            Pegar
+          </button>
+          <button
+            onClick={() => setEditingSteps((v) => !v)}
+            className="rounded-lg border border-border px-2.5 py-1.5 text-xs text-text-muted transition-colors hover:text-text"
+          >
+            Editar
+          </button>
+        </div>
+        {editingSteps && (
+          <div className="mt-3 flex gap-2">
+            <input
+              type="number"
+              inputMode="numeric"
+              placeholder="Escribir pasos"
+              value={stepsDraft}
+              onChange={(e) => setStepsDraft(e.target.value)}
+              className="input"
+            />
+            <button
+              onClick={() => Number(stepsDraft) >= 0 && stepsDraft !== '' && saveSteps(Math.round(Number(stepsDraft)))}
+              className="shrink-0 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-bg hover:bg-accent-hover"
+            >
+              Guardar
+            </button>
+          </div>
+        )}
+        {stepsStatus && <p className="mt-2 text-xs text-accent">{stepsStatus}</p>}
+      </section>
 
       {sheet && (
         <FoodEntrySheet
@@ -314,6 +355,9 @@ export function Nutrition() {
           date={dateKey}
           mode={sheet.mode}
           entry={sheet.entry}
+          initialAnalysis={sheet.analysis}
+          initialPhoto={sheet.photo}
+          initialNote={sheet.note}
           onClose={() => setSheet(null)}
         />
       )}

@@ -30,24 +30,42 @@ const FOOD_SCHEMA = {
   required: ['dishName', 'items'],
 }
 
-function buildPrompt(note: string): string {
+export interface FoodInput {
+  text?: string
+  image?: Blob
+  audio?: Blob
+}
+
+function buildPrompt({ text, image, audio }: FoodInput): string {
+  const note = text?.trim() ?? ''
+  if (image) {
+    return [
+      'Eres un nutricionista. Analiza la foto de este plato de comida.',
+      'Identifica cada alimento visible y estima su peso en gramos, sus kcal, proteína, carbohidratos y grasa.',
+      'Ten en cuenta el aceite, mantequilla o salsas que se vean, aunque sea en pequeña cantidad.',
+      'Usa raciones realistas según el tamaño del plato y los cubiertos. Responde en español.',
+      'Si la foto no contiene comida, devuelve items vacío.',
+      note ? `Nota del usuario sobre el plato (úsala, es más fiable que la foto): ${note}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n')
+  }
   return [
-    'Eres un nutricionista. Analiza la foto de este plato de comida.',
-    'Identifica cada alimento visible y estima su peso en gramos, sus kcal, proteína, carbohidratos y grasa.',
-    'Ten en cuenta el aceite, mantequilla o salsas que se vean, aunque sea en pequeña cantidad.',
-    'Usa raciones realistas según el tamaño del plato y los cubiertos. Responde en español.',
-    'Si la foto no contiene comida, devuelve items vacío.',
-    note.trim() ? `Nota del usuario sobre el plato (úsala, es más fiable que la foto): ${note.trim()}` : '',
-  ]
-    .filter(Boolean)
-    .join('\n')
+    'Eres un nutricionista. El usuario describe lo que ha comido' + (audio ? ' en este audio.' : ':'),
+    audio ? 'Escucha el audio con atención (puede tener ruido de fondo).' : `"${note}"`,
+    'Separa cada alimento y estima su peso en gramos, sus kcal, proteína, carbohidratos y grasa.',
+    'Interpreta cantidades y unidades (huevos, rebanadas, cucharadas, vasos, gramos).',
+    'Si nombra un producto de marca o de cadena de comida rápida (por ejemplo Whopper o Big Mac), usa sus valores nutricionales oficiales.',
+    'Si no indica cantidad, asume una ración normal. Responde en español.',
+    `Si ${audio ? 'el audio' : 'el texto'} no habla de comida o bebida, devuelve items vacío.`,
+  ].join('\n')
 }
 
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => resolve(String(reader.result).split(',')[1] ?? '')
-    reader.onerror = () => reject(new Error('No se pudo leer la imagen'))
+    reader.onerror = () => reject(new Error('No se pudo leer el archivo'))
     reader.readAsDataURL(blob)
   })
 }
@@ -60,6 +78,9 @@ async function readErrorMessage(response: Response): Promise<string> {
     detail = err?.message ?? ''
   } catch {
     // body isn't JSON
+  }
+  if (response.status === 503 || response.status === 500) {
+    return 'Gemini está saturado ahora mismo. Inténtalo de nuevo en unos segundos.'
   }
   if (response.status === 429) {
     return 'Has alcanzado el límite gratuito de Gemini por ahora. Espera un poco o añade la comida a mano.'
@@ -104,28 +125,31 @@ function toNumber(value: unknown): number {
   return Number.isFinite(n) && n > 0 ? Math.round(n) : 0
 }
 
-export async function analyzeFoodPhoto(
-  image: Blob,
-  note: string,
-  apiKey: string,
-  model: string,
-): Promise<FoodAnalysis> {
+export async function analyzeFood(input: FoodInput, apiKey: string, model: string): Promise<FoodAnalysis> {
   if (!apiKey) throw new Error('Falta la clave de Gemini. Añádela en Ajustes.')
 
-  const data = await blobToBase64(image)
-  const response = await request(`models/${encodeURIComponent(model)}:generateContent`, apiKey, {
+  const parts: Array<Record<string, unknown>> = [{ text: buildPrompt(input) }]
+  const media = input.image ?? input.audio
+  if (media) {
+    const fallbackType = input.image ? 'image/jpeg' : 'audio/wav'
+    parts.push({ inlineData: { mimeType: media.type || fallbackType, data: await blobToBase64(media) } })
+  }
+
+  const init: RequestInit = {
     method: 'POST',
     body: JSON.stringify({
-      contents: [
-        {
-          role: 'user',
-          parts: [{ text: buildPrompt(note) }, { inlineData: { mimeType: image.type || 'image/jpeg', data } }],
-        },
-      ],
+      contents: [{ role: 'user', parts }],
       generationConfig: { responseMimeType: 'application/json', responseJsonSchema: FOOD_SCHEMA },
       store: false,
     }),
-  })
+  }
+  const path = `models/${encodeURIComponent(model)}:generateContent`
+  let response = await request(path, apiKey, init)
+  // "High demand" overloads are usually gone a moment later: retry once before showing an error.
+  if (response.status === 503) {
+    await new Promise((resolve) => setTimeout(resolve, 2000))
+    response = await request(path, apiKey, init)
+  }
   if (!response.ok) throw new Error(await readErrorMessage(response))
 
   const text = extractText(await response.json())
@@ -144,7 +168,10 @@ export async function analyzeFoodPhoto(
     carbsG: toNumber(item.carbsG),
     fatG: toNumber(item.fatG),
   }))
-  if (items.length === 0) throw new Error('No se reconoció comida en la foto.')
+  if (items.length === 0) {
+    const where = input.image ? 'la foto' : input.audio ? 'el audio' : 'el texto'
+    throw new Error(`No se reconoció comida en ${where}.`)
+  }
 
   return { dishName: String(parsed.dishName ?? '').trim() || items[0].name, items }
 }
