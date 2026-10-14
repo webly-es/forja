@@ -176,21 +176,30 @@ export function FoodEntrySheet({ profileId, date, mode, entry, onClose }: FoodEn
         {usesItems && (
           <div className="mt-4 flex flex-col gap-3">
             <div className="flex items-center gap-3">
-              <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-surface-2 text-text-muted">
-                {previewUrl ? (
-                  <img src={previewUrl} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  <Camera size={22} />
-                )}
-              </div>
-              {!entry && (
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="text-left text-sm text-accent hover:underline"
+              {/* Whole row is the tap target while adding: the camera icon is what people reach for. */}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={!!entry}
+                className="group flex flex-1 items-center gap-3 text-left disabled:cursor-default"
+              >
+                <div
+                  className={`flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-surface-2 transition-colors ${
+                    entry ? 'border-border text-text-muted' : 'border-accent-muted text-accent group-hover:border-accent'
+                  }`}
                 >
-                  {photoFile ? 'Cambiar foto' : 'Hacer o elegir foto'}
-                </button>
-              )}
+                  {previewUrl ? (
+                    <img src={previewUrl} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <Camera size={26} />
+                  )}
+                </div>
+                {!entry && (
+                  <span className="text-sm text-accent group-hover:underline">
+                    {photoFile ? 'Cambiar foto' : 'Hacer o elegir foto'}
+                  </span>
+                )}
+              </button>
               <input
                 ref={fileInputRef}
                 type="file"
