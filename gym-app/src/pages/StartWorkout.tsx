@@ -8,7 +8,7 @@ import { estimateMet } from '../lib/met'
 import { estimateCalories } from '../lib/calories'
 import { WorkoutFinishSummary } from '../components/WorkoutFinishSummary'
 import { ConfirmDeleteRow } from '../components/ConfirmDeleteRow'
-import { ChevronRight, HeartPulse, Plus, Pencil, Trash2 } from 'lucide-react'
+import { ChevronRight, HeartPulse, ListChecks, Plus, Pencil, Trash2 } from 'lucide-react'
 
 type Mode = 'strength' | 'cardio'
 
@@ -105,13 +105,22 @@ export function StartWorkout() {
 
       {mode === 'strength' ? (
         <div className="flex flex-col gap-3">
-          <button
-            onClick={() => navigate('/workout/routines/new')}
-            className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm text-text-muted transition-transform hover:border-accent hover:text-accent active:scale-[0.97]"
-          >
-            <Plus size={16} />
-            Crear rutina
-          </button>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => navigate('/workout/routines/new')}
+              className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm text-text-muted transition-transform hover:border-accent hover:text-accent active:scale-[0.97]"
+            >
+              <Plus size={16} />
+              Crear rutina
+            </button>
+            <button
+              onClick={() => navigate('/exercises')}
+              className="flex items-center justify-center gap-2 rounded-xl border border-border py-3 text-sm text-text-muted transition-transform hover:border-accent hover:text-accent active:scale-[0.97]"
+            >
+              <ListChecks size={16} />
+              Ejercicios
+            </button>
+          </div>
           {routines?.map((r) => (
             <div
               key={r.id}

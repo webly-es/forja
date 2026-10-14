@@ -36,3 +36,21 @@ export function estimateMet(activityFreeText: string): number {
   }
   return DEFAULT_MET
 }
+
+// Cardio activities the iPhone also counts as steps. Used to avoid counting
+// the same minutes twice (once by MET, once via the daily step count).
+const STEP_CADENCE: Array<{ keywords: string[]; stepsPerMinute: number }> = [
+  { keywords: ['correr', 'trotar', 'running', 'trote'], stepsPerMinute: 160 },
+  { keywords: ['caminar', 'caminata', 'walk'], stepsPerMinute: 110 },
+  { keywords: ['senderismo', 'hiking'], stepsPerMinute: 100 },
+]
+
+export function estimateStepsPerMinute(activityFreeText: string): number {
+  const normalized = normalize(activityFreeText)
+  for (const entry of STEP_CADENCE) {
+    if (entry.keywords.some((k) => normalized.includes(normalize(k)))) {
+      return entry.stepsPerMinute
+    }
+  }
+  return 0
+}

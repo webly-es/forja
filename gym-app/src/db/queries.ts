@@ -126,19 +126,43 @@ export async function deleteRoutine(routineId: number) {
 }
 
 // Deletes a profile and everything scoped to it (weight log, workout
-// sessions, sets, cardio sessions). Exercises/routines/exercisePhotos are
+// sessions, sets, cardio sessions, food log, steps). Exercises/routines/exercisePhotos are
 // shared across profiles and are left untouched.
 export async function deleteProfile(profileId: number) {
   await db.transaction(
     'rw',
-    [db.profiles, db.bodyWeightLogs, db.bodyMeasurements, db.workoutSessions, db.sets, db.cardioSessions],
+    [
+      db.profiles,
+      db.bodyWeightLogs,
+      db.bodyMeasurements,
+      db.workoutSessions,
+      db.sets,
+      db.cardioSessions,
+      db.foodEntries,
+      db.dailySteps,
+    ],
     async () => {
       await db.bodyWeightLogs.where('profileId').equals(profileId).delete()
       await db.bodyMeasurements.where('profileId').equals(profileId).delete()
       await db.workoutSessions.where('profileId').equals(profileId).delete()
       await db.sets.where('profileId').equals(profileId).delete()
       await db.cardioSessions.where('profileId').equals(profileId).delete()
+      await db.foodEntries.where('profileId').equals(profileId).delete()
+      await db.dailySteps.where('profileId').equals(profileId).delete()
       await db.profiles.delete(profileId)
     },
   )
+}
+
+export async function setDailySteps(profileId: number, date: string, steps: number) {
+  const existing = await db.dailySteps
+    .where('profileId')
+    .equals(profileId)
+    .and((d) => d.date === date)
+    .first()
+  if (existing) {
+    await db.dailySteps.update(existing.id!, { steps })
+  } else {
+    await db.dailySteps.add({ profileId, date, steps })
+  }
 }

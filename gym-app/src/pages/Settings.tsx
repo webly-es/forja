@@ -2,10 +2,12 @@ import { useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useNavigate } from 'react-router-dom'
 import { db } from '../db/db'
-import { useAppStore } from '../store/useAppStore'
+import { useAppStore, DEFAULT_GEMINI_MODEL } from '../store/useAppStore'
+import { todayKey } from '../lib/dates'
 import { exportProfileData, importProfileData } from '../lib/exportImport'
 import { MEASUREMENT_TYPES, MEASUREMENT_LABELS } from '../lib/measurements'
-import { Pencil, Download, Upload, Users, RefreshCw } from 'lucide-react'
+import { testGeminiKey } from '../lib/gemini'
+import { Pencil, Download, Upload, Users, RefreshCw, ChevronDown } from 'lucide-react'
 
 const BUILD_TIME_LABEL = new Date(__APP_BUILD_TIME__).toLocaleString('es', {
   day: 'numeric',
@@ -27,10 +29,35 @@ export function Settings() {
   const [status, setStatus] = useState<string | null>(null)
   const [checkingUpdate, setCheckingUpdate] = useState(false)
 
+  const geminiApiKey = useAppStore((s) => s.geminiApiKey)
+  const geminiModel = useAppStore((s) => s.geminiModel)
+  const setGeminiApiKey = useAppStore((s) => s.setGeminiApiKey)
+  const setGeminiModel = useAppStore((s) => s.setGeminiModel)
+  const [keyDraft, setKeyDraft] = useState(geminiApiKey)
+  const [modelDraft, setModelDraft] = useState(geminiModel)
+  const [keyStatus, setKeyStatus] = useState<string | null>(null)
+  const [testingKey, setTestingKey] = useState(false)
+  const [showShortcutHelp, setShowShortcutHelp] = useState(false)
+
+  async function handleSaveGemini() {
+    setGeminiApiKey(keyDraft)
+    setGeminiModel(modelDraft)
+    setTestingKey(true)
+    setKeyStatus(null)
+    try {
+      await testGeminiKey(keyDraft.trim(), modelDraft.trim() || DEFAULT_GEMINI_MODEL)
+      setKeyStatus('Clave guardada y funcionando')
+    } catch (err) {
+      setKeyStatus(err instanceof Error ? err.message : 'No se pudo comprobar la clave')
+    } finally {
+      setTestingKey(false)
+    }
+  }
+
   async function logTodayWeight() {
     const weightKg = Number(todayWeight)
     if (!weightKg || weightKg <= 0) return
-    const today = new Date().toISOString().slice(0, 10)
+    const today = todayKey()
     const existing = await db.bodyWeightLogs
       .where('profileId')
       .equals(activeProfileId)
@@ -48,7 +75,7 @@ export function Settings() {
   }
 
   async function logTodayMeasurements() {
-    const today = new Date().toISOString().slice(0, 10)
+    const today = todayKey()
     const entries = MEASUREMENT_TYPES.filter((type) => {
       const raw = todayMeasurements[type]
       return raw != null && raw.trim() !== '' && Number(raw) > 0
@@ -190,6 +217,89 @@ export function Settings() {
         >
           Guardar medidas
         </button>
+      </section>
+
+      <section>
+        <h2 className="mb-3 text-xs uppercase tracking-wide text-text-muted">Análisis de comida (Gemini)</h2>
+        <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-4">
+          <p className="text-xs text-text-muted">
+            Crea una clave gratuita en{' '}
+            <a
+              href="https://aistudio.google.com/apikey"
+              target="_blank"
+              rel="noreferrer"
+              className="text-accent hover:underline"
+            >
+              Google AI Studio
+            </a>{' '}
+            (botón "Create API key") y pégala aquí. Se guarda solo en este dispositivo. En el plan gratuito, Google
+            puede usar las fotos enviadas para mejorar sus modelos.
+          </p>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-text-muted">Clave</span>
+            <input
+              type="password"
+              autoComplete="off"
+              value={keyDraft}
+              onChange={(e) => setKeyDraft(e.target.value)}
+              className="input"
+              placeholder="AIza…"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-text-muted">Modelo</span>
+            <input
+              type="text"
+              autoCapitalize="none"
+              value={modelDraft}
+              onChange={(e) => setModelDraft(e.target.value)}
+              className="input"
+              placeholder={DEFAULT_GEMINI_MODEL}
+            />
+          </label>
+          <button
+            onClick={handleSaveGemini}
+            disabled={testingKey || keyDraft.trim() === ''}
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-bg hover:bg-accent-hover disabled:opacity-30"
+          >
+            {testingKey ? 'Comprobando…' : 'Guardar y probar'}
+          </button>
+          {keyStatus && <p className="text-xs text-accent">{keyStatus}</p>}
+        </div>
+      </section>
+
+      <section>
+        <button
+          onClick={() => setShowShortcutHelp((v) => !v)}
+          className="flex w-full items-center justify-between rounded-xl border border-border bg-surface p-4 text-left text-sm text-text transition-colors hover:border-accent"
+        >
+          Pasos desde Salud del iPhone (Atajo)
+          <ChevronDown size={16} className={`text-text-muted transition-transform ${showShortcutHelp ? 'rotate-180' : ''}`} />
+        </button>
+        {showShortcutHelp && (
+          <div className="mt-2 rounded-xl border border-border bg-surface p-4 text-sm text-text-muted">
+            <p>Las apps web no pueden leer Salud directamente, así que un Atajo copia tus pasos y aquí los pegas.</p>
+            <ol className="mt-3 list-decimal space-y-1.5 pl-5">
+              <li>Abre la app Atajos y crea un atajo nuevo llamado "Pasos Forja".</li>
+              <li>
+                Añade la acción <span className="text-text">Buscar muestras de salud</span>: tipo Pasos, fecha
+                de inicio "es hoy".
+              </li>
+              <li>
+                Añade <span className="text-text">Calcular estadísticas</span>: Suma.
+              </li>
+              <li>
+                Añade <span className="text-text">Redondear número</span> y después{' '}
+                <span className="text-text">Copiar al portapapeles</span>.
+              </li>
+              <li>Ejecútalo (la primera vez pedirá permiso para leer Salud), abre Forja → Comida → "Pegar pasos".</li>
+            </ol>
+            <p className="mt-3">
+              Opcional: en Atajos → Automatización, crea una automatización "Hora del día" (por ejemplo 22:00) que
+              ejecute este atajo, y solo tendrás que pegar.
+            </p>
+          </div>
+        )}
       </section>
 
       <section className="flex flex-col gap-3">

@@ -1,5 +1,6 @@
 import type { MuscleGroup } from './lib/muscleGroups'
 import type { MeasurementType } from './lib/measurements'
+import type { MealType } from './lib/meals'
 
 export type Sex = 'M' | 'F'
 
@@ -95,4 +96,36 @@ export interface ExercisePhoto {
 
 export interface SeedTombstone {
   key: string
+}
+
+export interface FoodItem {
+  name: string
+  grams: number
+  kcal: number
+  proteinG: number
+  carbsG: number
+  fatG: number
+}
+
+export interface FoodEntry {
+  id?: number
+  profileId: number
+  date: string // local yyyy-mm-dd
+  loggedAt: string // ISO datetime
+  meal: MealType
+  name: string
+  items?: FoodItem[]
+  kcal: number
+  proteinG: number
+  carbsG: number
+  fatG: number
+  source: 'ai' | 'manual'
+  photo?: Blob // small thumbnail
+}
+
+export interface DailySteps {
+  id?: number
+  profileId: number
+  date: string // local yyyy-mm-dd
+  steps: number
 }

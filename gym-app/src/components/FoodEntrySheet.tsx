@@ -1,0 +1,396 @@
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Camera, Sparkles, Trash2, X } from 'lucide-react'
+import { db } from '../db/db'
+import { useAppStore } from '../store/useAppStore'
+import { resizeImageToBlob } from '../lib/image'
+import { analyzeFoodPhoto } from '../lib/gemini'
+import { MEAL_LABELS, MEAL_TYPES, mealForHour, type MealType } from '../lib/meals'
+import { ConfirmDeleteRow } from './ConfirmDeleteRow'
+import type { FoodEntry, FoodItem } from '../types'
+
+interface FoodEntrySheetProps {
+  profileId: number
+  date: string
+  mode: 'photo' | 'manual'
+  entry?: FoodEntry
+  onClose: () => void
+}
+
+function sumItems(items: FoodItem[]) {
+  return items.reduce(
+    (acc, i) => ({
+      kcal: acc.kcal + i.kcal,
+      proteinG: acc.proteinG + i.proteinG,
+      carbsG: acc.carbsG + i.carbsG,
+      fatG: acc.fatG + i.fatG,
+    }),
+    { kcal: 0, proteinG: 0, carbsG: 0, fatG: 0 },
+  )
+}
+
+// Changing an item's grams scales its kcal/macros proportionally, since the
+// AI's per-gram estimate is usually better than its portion estimate.
+function scaleItem(item: FoodItem, grams: number): FoodItem {
+  if (item.grams <= 0) return { ...item, grams }
+  const f = grams / item.grams
+  return {
+    ...item,
+    grams,
+    kcal: Math.round(item.kcal * f),
+    proteinG: Math.round(item.proteinG * f),
+    carbsG: Math.round(item.carbsG * f),
+    fatG: Math.round(item.fatG * f),
+  }
+}
+
+function numberOrZero(raw: string): number {
+  const n = Number(raw)
+  return Number.isFinite(n) && n > 0 ? n : 0
+}
+
+export function FoodEntrySheet({ profileId, date, mode, entry, onClose }: FoodEntrySheetProps) {
+  const navigate = useNavigate()
+  const geminiApiKey = useAppStore((s) => s.geminiApiKey)
+  const geminiModel = useAppStore((s) => s.geminiModel)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const usesItems = entry ? entry.items != null : mode === 'photo'
+
+  const [name, setName] = useState(entry?.name ?? '')
+  const [meal, setMeal] = useState<MealType>(entry?.meal ?? mealForHour(new Date().getHours()))
+  const [items, setItems] = useState<FoodItem[]>(entry?.items ?? [])
+  const [manual, setManual] = useState({
+    kcal: entry && !entry.items ? String(entry.kcal) : '',
+    proteinG: entry && !entry.items ? String(entry.proteinG || '') : '',
+    carbsG: entry && !entry.items ? String(entry.carbsG || '') : '',
+    fatG: entry && !entry.items ? String(entry.fatG || '') : '',
+  })
+
+  const [note, setNote] = useState('')
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [thumbnail, setThumbnail] = useState<Blob | undefined>(entry?.photo)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [analyzing, setAnalyzing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+
+  useEffect(() => {
+    if (!thumbnail) {
+      setPreviewUrl(null)
+      return
+    }
+    const url = URL.createObjectURL(thumbnail)
+    setPreviewUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [thumbnail])
+
+  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setError(null)
+    setPhotoFile(file)
+    setThumbnail(await resizeImageToBlob(file, 320, 0.7))
+  }
+
+  async function handleAnalyze() {
+    if (!photoFile) return
+    setAnalyzing(true)
+    setError(null)
+    try {
+      const image = await resizeImageToBlob(photoFile, 1024, 0.8)
+      const result = await analyzeFoodPhoto(image, note, geminiApiKey, geminiModel)
+      setItems(result.items)
+      if (!name.trim()) setName(result.dishName)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo analizar la foto.')
+    } finally {
+      setAnalyzing(false)
+    }
+  }
+
+  function updateItem(index: number, patch: Partial<FoodItem>) {
+    setItems((prev) => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)))
+  }
+
+  const totals = usesItems
+    ? sumItems(items)
+    : {
+        kcal: numberOrZero(manual.kcal),
+        proteinG: numberOrZero(manual.proteinG),
+        carbsG: numberOrZero(manual.carbsG),
+        fatG: numberOrZero(manual.fatG),
+      }
+
+  const canSave = !saving && name.trim() !== '' && totals.kcal > 0
+
+  async function handleSave() {
+    if (!canSave) return
+    setSaving(true)
+    const data = {
+      meal,
+      name: name.trim(),
+      items: usesItems ? items : undefined,
+      kcal: Math.round(totals.kcal),
+      proteinG: Math.round(totals.proteinG),
+      carbsG: Math.round(totals.carbsG),
+      fatG: Math.round(totals.fatG),
+      photo: thumbnail,
+    }
+    if (entry?.id != null) {
+      await db.foodEntries.update(entry.id, data)
+    } else {
+      await db.foodEntries.add({
+        ...data,
+        profileId,
+        date,
+        loggedAt: new Date().toISOString(),
+        source: usesItems ? 'ai' : 'manual',
+      })
+    }
+    onClose()
+  }
+
+  async function handleDelete() {
+    if (entry?.id == null) return
+    await db.foodEntries.delete(entry.id)
+    onClose()
+  }
+
+  const needsKey = usesItems && !entry && !geminiApiKey
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 sm:items-center sm:px-6">
+      <div className="max-h-[92dvh] w-full max-w-sm overflow-y-auto rounded-t-2xl border border-border bg-surface p-6 sm:rounded-2xl">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-text">
+            {entry ? 'Editar comida' : usesItems ? 'Foto del plato' : 'Añadir a mano'}
+          </h2>
+          <button onClick={onClose} className="text-text-muted hover:text-text" aria-label="Cerrar">
+            <X size={20} />
+          </button>
+        </div>
+
+        {usesItems && (
+          <div className="mt-4 flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-surface-2 text-text-muted">
+                {previewUrl ? (
+                  <img src={previewUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <Camera size={22} />
+                )}
+              </div>
+              {!entry && (
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="text-left text-sm text-accent hover:underline"
+                >
+                  {photoFile ? 'Cambiar foto' : 'Hacer o elegir foto'}
+                </button>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                hidden
+                onChange={handlePhotoChange}
+              />
+            </div>
+
+            {needsKey ? (
+              <div className="rounded-xl border border-border bg-surface-2 p-4 text-sm text-text-muted">
+                Para analizar fotos necesitas tu clave gratuita de Gemini.{' '}
+                <button onClick={() => navigate('/settings')} className="text-accent hover:underline">
+                  Configurarla en Ajustes
+                </button>
+              </div>
+            ) : (
+              !entry && (
+                <>
+                  <input
+                    type="text"
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    className="input"
+                    placeholder="Nota opcional: ej. arroz con pollo, unos 200 g"
+                  />
+                  <button
+                    onClick={handleAnalyze}
+                    disabled={!photoFile || analyzing}
+                    className="flex items-center justify-center gap-2 rounded-lg bg-accent py-2.5 text-sm font-medium text-bg transition-opacity hover:bg-accent-hover disabled:opacity-30"
+                  >
+                    <Sparkles size={16} className={analyzing ? 'animate-pulse' : ''} />
+                    {analyzing ? 'Analizando…' : items.length > 0 ? 'Volver a analizar' : 'Analizar con IA'}
+                  </button>
+                </>
+              )
+            )}
+
+            {error && <p className="text-xs text-danger">{error}</p>}
+
+            {items.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <div className="text-xs uppercase tracking-wide text-text-muted">Alimentos (puedes corregirlos)</div>
+                {items.map((item, i) => (
+                  <div key={i} className="rounded-lg border border-border bg-surface-2 p-3">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={item.name}
+                        onChange={(e) => updateItem(i, { name: e.target.value })}
+                        className="min-w-0 flex-1 bg-transparent text-sm text-text outline-none"
+                      />
+                      <button
+                        onClick={() => setItems((prev) => prev.filter((_, j) => j !== i))}
+                        className="text-text-muted hover:text-text"
+                        aria-label="Quitar alimento"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                    <div className="mt-2 grid grid-cols-3 gap-2">
+                      <label className="flex flex-col gap-0.5 text-[11px] text-text-muted">
+                        Gramos
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          value={item.grams || ''}
+                          onChange={(e) =>
+                            setItems((prev) =>
+                              prev.map((it, j) => (j === i ? scaleItem(it, numberOrZero(e.target.value)) : it)),
+                            )
+                          }
+                          className="input !py-1.5 text-sm"
+                        />
+                      </label>
+                      <label className="flex flex-col gap-0.5 text-[11px] text-text-muted">
+                        kcal
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          value={item.kcal || ''}
+                          onChange={(e) => updateItem(i, { kcal: numberOrZero(e.target.value) })}
+                          className="input !py-1.5 text-sm"
+                        />
+                      </label>
+                      <label className="flex flex-col gap-0.5 text-[11px] text-text-muted">
+                        Proteína g
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          value={item.proteinG || ''}
+                          onChange={(e) => updateItem(i, { proteinG: numberOrZero(e.target.value) })}
+                          className="input !py-1.5 text-sm"
+                        />
+                      </label>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {(!usesItems || items.length > 0) && (
+          <div className="mt-4 flex flex-col gap-3">
+            <div>
+              <label className="mb-1 block text-xs uppercase tracking-wide text-text-muted">Nombre</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="input"
+                placeholder="Ej. Avena con plátano"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs uppercase tracking-wide text-text-muted">Tipo</label>
+              <select value={meal} onChange={(e) => setMeal(e.target.value as MealType)} className="input">
+                {MEAL_TYPES.map((m) => (
+                  <option key={m} value={m}>
+                    {MEAL_LABELS[m]}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {usesItems ? (
+              <div className="rounded-xl border border-border bg-surface-2 p-3 text-center">
+                <div className="text-2xl font-semibold text-accent">{Math.round(totals.kcal)} kcal</div>
+                <div className="mt-1 text-xs text-text-muted">
+                  P {Math.round(totals.proteinG)} g · C {Math.round(totals.carbsG)} g · G {Math.round(totals.fatG)} g
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                {(
+                  [
+                    ['kcal', 'Calorías (kcal)'],
+                    ['proteinG', 'Proteína (g)'],
+                    ['carbsG', 'Carbohidratos (g)'],
+                    ['fatG', 'Grasa (g)'],
+                  ] as const
+                ).map(([key, label]) => (
+                  <label key={key} className="flex flex-col gap-1">
+                    <span className="text-xs text-text-muted">{label}</span>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      value={manual[key]}
+                      onChange={(e) => setManual((prev) => ({ ...prev, [key]: e.target.value }))}
+                      className="input"
+                      placeholder={key === 'kcal' ? 'Obligatorio' : 'Opcional'}
+                    />
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="mt-6 flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 rounded-lg border border-border py-2.5 text-sm text-text-muted hover:text-text"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={!canSave}
+            className="flex-1 rounded-lg bg-accent py-2.5 text-sm font-medium text-bg transition-opacity disabled:opacity-30 hover:bg-accent-hover"
+          >
+            {saving ? 'Guardando…' : 'Guardar'}
+          </button>
+        </div>
+
+        {entry && (
+          <div className="mt-3">
+            {confirmingDelete ? (
+              <div className="rounded-xl border border-border bg-surface p-4">
+                <ConfirmDeleteRow
+                  message="¿Borrar esta comida del registro?"
+                  onCancel={() => setConfirmingDelete(false)}
+                  onConfirm={handleDelete}
+                  confirmLabel="Sí, borrar"
+                />
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfirmingDelete(true)}
+                className="flex w-full items-center justify-center gap-2 rounded-lg py-2 text-xs text-danger hover:underline"
+              >
+                <Trash2 size={14} />
+                Borrar comida
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

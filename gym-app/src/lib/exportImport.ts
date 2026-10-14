@@ -9,16 +9,23 @@ interface BackupPayload {
   bodyMeasurements?: unknown[]
   workoutSessions: unknown[]
   sets: unknown[]
+  cardioSessions?: unknown[]
+  foodEntries?: unknown[]
+  dailySteps?: unknown[]
 }
 
 export async function exportProfileData(profileId: number) {
-  const [profile, bodyWeightLogs, bodyMeasurements, workoutSessions, sets] = await Promise.all([
-    db.profiles.get(profileId),
-    db.bodyWeightLogs.where('profileId').equals(profileId).toArray(),
-    db.bodyMeasurements.where('profileId').equals(profileId).toArray(),
-    db.workoutSessions.where('profileId').equals(profileId).toArray(),
-    db.sets.where('profileId').equals(profileId).toArray(),
-  ])
+  const [profile, bodyWeightLogs, bodyMeasurements, workoutSessions, sets, cardioSessions, foodEntries, dailySteps] =
+    await Promise.all([
+      db.profiles.get(profileId),
+      db.bodyWeightLogs.where('profileId').equals(profileId).toArray(),
+      db.bodyMeasurements.where('profileId').equals(profileId).toArray(),
+      db.workoutSessions.where('profileId').equals(profileId).toArray(),
+      db.sets.where('profileId').equals(profileId).toArray(),
+      db.cardioSessions.where('profileId').equals(profileId).toArray(),
+      db.foodEntries.where('profileId').equals(profileId).toArray(),
+      db.dailySteps.where('profileId').equals(profileId).toArray(),
+    ])
   if (!profile) throw new Error('Perfil no encontrado')
 
   const payload: BackupPayload = {
@@ -29,6 +36,10 @@ export async function exportProfileData(profileId: number) {
     bodyMeasurements,
     workoutSessions,
     sets,
+    cardioSessions,
+    // Photo thumbnails are Blobs and don't survive JSON — data only.
+    foodEntries: foodEntries.map(({ photo: _photo, ...rest }) => rest),
+    dailySteps,
   }
 
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
@@ -52,11 +63,16 @@ export async function importProfileData(file: File): Promise<number> {
 
   return db.transaction(
     'rw',
-    db.profiles,
-    db.bodyWeightLogs,
-    db.bodyMeasurements,
-    db.workoutSessions,
-    db.sets,
+    [
+      db.profiles,
+      db.bodyWeightLogs,
+      db.bodyMeasurements,
+      db.workoutSessions,
+      db.sets,
+      db.cardioSessions,
+      db.foodEntries,
+      db.dailySteps,
+    ],
     async () => {
       const { id: _oldId, ...profileData } = payload.profile
       const newProfileId = (await db.profiles.add({ ...profileData })) as number
@@ -83,6 +99,19 @@ export async function importProfileData(file: File): Promise<number> {
         const newSessionId = sessionIdMap.get(sessionId as number)
         if (newSessionId == null) continue
         await db.sets.add({ ...rest, sessionId: newSessionId, profileId: newProfileId } as never)
+      }
+
+      // Optional in older backups.
+      const profileRows: Array<[{ add: (row: never) => unknown }, unknown[] | undefined]> = [
+        [db.cardioSessions, payload.cardioSessions],
+        [db.foodEntries, payload.foodEntries],
+        [db.dailySteps, payload.dailySteps],
+      ]
+      for (const [table, rows] of profileRows) {
+        for (const row of (rows ?? []) as Array<Record<string, unknown>>) {
+          const { id: _oldId, ...rest } = row
+          await table.add({ ...rest, profileId: newProfileId } as never)
+        }
       }
 
       return newProfileId

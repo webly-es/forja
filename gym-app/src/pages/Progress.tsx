@@ -4,6 +4,8 @@ import { db } from '../db/db'
 import { filterSetsFromFinishedSessions } from '../db/queries'
 import { useAppStore } from '../store/useAppStore'
 import { MEASUREMENT_TYPES, MEASUREMENT_LABELS, type MeasurementType } from '../lib/measurements'
+import { computeDailyEnergy } from '../lib/dailyEnergy'
+import { formatDateKey, shiftDateKey, todayKey } from '../lib/dates'
 import type { Exercise } from '../types'
 
 interface ProgressRow {
@@ -62,8 +64,92 @@ function ProgressTable({
   )
 }
 
+interface NutritionRow {
+  date: string
+  consumed: number
+  spent: number
+}
+
+function NutritionTable({ rows }: { rows: NutritionRow[] }) {
+  if (rows.length === 0) {
+    return <p className="text-sm text-text-muted">Registra comidas en la pestaña Comida para ver tu balance aquí.</p>
+  }
+  const lastWeek = rows.filter((r) => r.date > shiftDateKey(todayKey(), -7))
+  const avg = (values: number[]) => Math.round(values.reduce((a, b) => a + b, 0) / Math.max(1, values.length))
+  return (
+    <>
+      {lastWeek.length > 0 && (
+        <div className="mb-3 grid grid-cols-3 rounded-xl border border-border bg-surface p-4 text-center">
+          <div>
+            <div className="text-lg font-semibold text-text">{avg(lastWeek.map((r) => r.consumed))}</div>
+            <div className="text-[11px] text-text-muted">media consumida</div>
+          </div>
+          <div>
+            <div className="text-lg font-semibold text-text">{avg(lastWeek.map((r) => r.spent))}</div>
+            <div className="text-[11px] text-text-muted">media gastada</div>
+          </div>
+          <div>
+            <div className="text-lg font-semibold text-accent">
+              {avg(lastWeek.map((r) => r.consumed - r.spent))}
+            </div>
+            <div className="text-[11px] text-text-muted">balance medio</div>
+          </div>
+        </div>
+      )}
+      <div className="overflow-hidden rounded-xl border border-border bg-surface">
+        {rows.map((row, i) => {
+          const balance = row.consumed - row.spent
+          return (
+            <div
+              key={row.date}
+              className={`flex items-center justify-between px-4 py-3 text-sm ${i > 0 ? 'border-t border-border' : ''}`}
+            >
+              <span className="capitalize text-text-muted">{formatDateKey(row.date)}</span>
+              <div className="flex items-center gap-3">
+                <span className="text-text">
+                  {row.consumed} / {row.spent} kcal
+                </span>
+                <span className={`w-14 text-right ${balance <= 0 ? 'text-emerald-500' : 'text-danger'}`}>
+                  {balance > 0 ? '+' : ''}
+                  {balance}
+                </span>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </>
+  )
+}
+
 export function Progress() {
   const activeProfileId = useAppStore((s) => s.activeProfileId)!
+
+  const nutritionRows = useLiveQuery(
+    async () => {
+      const since = shiftDateKey(todayKey(), -14)
+      const [profile, entries, steps, sessions, cardio] = await Promise.all([
+        db.profiles.get(activeProfileId),
+        db.foodEntries.where('profileId').equals(activeProfileId).and((e) => e.date > since).toArray(),
+        db.dailySteps.where('profileId').equals(activeProfileId).and((d) => d.date > since).toArray(),
+        db.workoutSessions.where('profileId').equals(activeProfileId).toArray(),
+        db.cardioSessions.where('profileId').equals(activeProfileId).toArray(),
+      ])
+      if (!profile) return []
+      const consumedByDate = new Map<string, number>()
+      for (const e of entries) consumedByDate.set(e.date, (consumedByDate.get(e.date) ?? 0) + e.kcal)
+      const stepsByDate = new Map(steps.map((d) => [d.date, d.steps]))
+      return [...consumedByDate.entries()]
+        .sort((a, b) => b[0].localeCompare(a[0]))
+        .map(([date, consumed]) => ({
+          date,
+          consumed: Math.round(consumed),
+          spent: computeDailyEnergy(profile, date, { sessions, cardio, steps: stepsByDate.get(date) ?? 0 }).total,
+        }))
+    },
+    [activeProfileId],
+    [],
+  )
 
   const weightData = useLiveQuery(
     () =>
@@ -154,6 +240,11 @@ export function Progress() {
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-semibold tracking-tight text-text">Progreso</h1>
+
+      <section>
+        <h2 className="mb-3 text-xs uppercase tracking-wide text-text-muted">Nutrición (14 días)</h2>
+        <NutritionTable rows={nutritionRows} />
+      </section>
 
       <section>
         <h2 className="mb-3 text-xs uppercase tracking-wide text-text-muted">Peso corporal</h2>

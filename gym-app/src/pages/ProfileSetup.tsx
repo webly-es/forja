@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { db } from '../db/db'
 import { ensureFemaleRoutinesSeeded } from '../db/seed'
 import { useAppStore } from '../store/useAppStore'
+import { todayKey } from '../lib/dates'
 import { ACTIVITY_LABELS, GOAL_LABELS } from '../lib/metrics'
 import type { ActivityLevel, Goal, Sex } from '../types'
 
@@ -61,7 +62,7 @@ export function ProfileSetup() {
     const newId = (await db.profiles.add({ ...data, createdAt: new Date().toISOString() })) as number
     await db.bodyWeightLogs.add({
       profileId: newId,
-      date: new Date().toISOString().slice(0, 10),
+      date: todayKey(),
       weightKg: data.weightKg,
     })
     if (sex === 'F') {

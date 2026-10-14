@@ -16,6 +16,7 @@ import { History } from './pages/History'
 import { HistoryDetail } from './pages/HistoryDetail'
 import { CardioDetail } from './pages/CardioDetail'
 import { Progress } from './pages/Progress'
+import { Nutrition } from './pages/Nutrition'
 import { Settings } from './pages/Settings'
 
 function App() {
@@ -50,6 +51,7 @@ function App() {
             <Route path="/history" element={<History />} />
             <Route path="/history/:sessionId" element={<HistoryDetail />} />
             <Route path="/history/cardio/:sessionId" element={<CardioDetail />} />
+            <Route path="/food" element={<Nutrition />} />
             <Route path="/progress" element={<Progress />} />
             <Route path="/settings" element={<Settings />} />
           </Route>

@@ -4,7 +4,9 @@ import { db } from '../db/db'
 import { useAppStore } from '../store/useAppStore'
 import { StatCard } from '../components/StatCard'
 import { getBMI, getBMICategory, getTargetCalories, getMacros, getAge } from '../lib/metrics'
-import { Dumbbell } from 'lucide-react'
+import { useDayBalance } from '../hooks/useDayBalance'
+import { todayKey } from '../lib/dates'
+import { ChevronRight, Dumbbell } from 'lucide-react'
 
 function formatRelativeDate(iso: string): string {
   const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000)
@@ -42,6 +44,8 @@ export function Home() {
         ),
     [activeProfileId],
   )
+
+  const today = useDayBalance(activeProfileId, todayKey())
 
   if (!profile) return null
 
@@ -97,6 +101,36 @@ export function Home() {
           <div className="mt-0.5 text-xs text-accent">{formatRelativeDate(lastSession.startedAt)}</div>
         )}
       </div>
+
+      {today && (
+        <button
+          onClick={() => navigate('/food')}
+          className="rounded-xl border border-border bg-surface p-4 text-left transition-colors hover:border-accent"
+        >
+          <div className="flex items-center justify-between">
+            <div className="text-xs uppercase tracking-wide text-text-muted">Hoy</div>
+            <ChevronRight size={16} className="text-text-muted" />
+          </div>
+          <div className="mt-2 grid grid-cols-3">
+            <div>
+              <div className="text-lg font-semibold text-text">{Math.round(today.consumed.kcal)}</div>
+              <div className="text-xs text-text-muted">consumidas</div>
+            </div>
+            <div>
+              <div className="text-lg font-semibold text-text">{today.energy.total}</div>
+              <div className="text-xs text-text-muted">gastadas</div>
+            </div>
+            <div>
+              <div className="text-lg font-semibold text-accent">
+                {Math.abs(Math.round(today.consumed.kcal - today.energy.total))}
+              </div>
+              <div className="text-xs text-text-muted">
+                {today.consumed.kcal - today.energy.total <= 0 ? 'déficit' : 'superávit'}
+              </div>
+            </div>
+          </div>
+        </button>
+      )}
 
       <div>
         <h2 className="mb-3 text-xs uppercase tracking-wide text-text-muted">Tus métricas</h2>
