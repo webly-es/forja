@@ -1,6 +1,6 @@
 import { db } from './db'
 import type { MuscleGroup } from '../lib/muscleGroups'
-import { isSeedTombstoned, tombstoneKeys } from './seedTombstones'
+import { addSeedTombstone, isSeedTombstoned, tombstoneKeys } from './seedTombstones'
 
 interface SeedExercise {
   name: string
@@ -12,50 +12,49 @@ const ROUTINES: { key: string; name: string; exercises: SeedExercise[] }[] = [
     key: 'chest-tri-shoulders',
     name: 'Pecho - Tríceps - Hombros',
     exercises: [
-      { name: 'Press banca sentado empujando hacia delante', muscleGroup: 'Pecho' },
-      { name: 'Press banca inclinado con mancuerna', muscleGroup: 'Pecho' },
-      { name: 'Press banca inclinado en máquina', muscleGroup: 'Pecho' },
+      { name: 'Press de pecho sentado en máquina', muscleGroup: 'Pecho' },
+      { name: 'Press inclinado con mancuernas', muscleGroup: 'Pecho' },
+      { name: 'Press inclinado en máquina', muscleGroup: 'Pecho' },
       { name: 'Aperturas de pecho en máquina (Pec-Deck)', muscleGroup: 'Pecho' },
-      { name: 'Press de pecho en máquina vertical', muscleGroup: 'Pecho' },
+      { name: 'Press de pecho vertical en máquina', muscleGroup: 'Pecho' },
       { name: 'Press de hombro en máquina', muscleGroup: 'Hombro' },
-      { name: 'Press de hombro en máquina con algo de inclinación', muscleGroup: 'Hombro' },
-      { name: 'Elevaciones laterales con mancuerna', muscleGroup: 'Hombro' },
-      { name: 'Jalón de tríceps hacia abajo con cuerdas', muscleGroup: 'Tríceps' },
-      { name: 'Jalón de tríceps con una sola mano', muscleGroup: 'Tríceps' },
-      { name: 'Paralelas en máquina para tríceps', muscleGroup: 'Tríceps' },
+      { name: 'Press de hombro inclinado en máquina', muscleGroup: 'Hombro' },
+      { name: 'Elevaciones laterales con mancuernas', muscleGroup: 'Hombro' },
+      { name: 'Extensión de tríceps en polea con cuerda', muscleGroup: 'Tríceps' },
+      { name: 'Extensión de tríceps en polea a una mano', muscleGroup: 'Tríceps' },
+      { name: 'Fondos de tríceps en máquina', muscleGroup: 'Tríceps' },
     ],
   },
   {
     key: 'back-biceps',
     name: 'Espalda - Bíceps',
     exercises: [
-      { name: 'Máquina de espalda jalando abajo, agarre ancho', muscleGroup: 'Espalda' },
-      { name: 'Máquina de espalda jalando abajo, agarre para dorsales', muscleGroup: 'Espalda' },
-      { name: 'Máquina de espalda jalando de frente hacia la espalda', muscleGroup: 'Espalda' },
+      { name: 'Jalón al pecho, agarre ancho', muscleGroup: 'Espalda' },
+      { name: 'Jalón al pecho, agarre cerrado', muscleGroup: 'Espalda' },
+      { name: 'Remo sentado en máquina', muscleGroup: 'Espalda' },
       {
-        name: 'Máquina de espalda jalando desde arriba (dorsales y espalda media)',
+        name: 'Jalón en máquina de discos',
         muscleGroup: 'Espalda',
       },
-      { name: 'Elevación de mancuernas para bíceps', muscleGroup: 'Bíceps' },
-      { name: 'Elevación de mancuernas martillo para bíceps', muscleGroup: 'Bíceps' },
-      { name: 'Predicador para bíceps en máquina', muscleGroup: 'Bíceps' },
+      { name: 'Curl de bíceps con mancuernas', muscleGroup: 'Bíceps' },
+      { name: 'Curl martillo con mancuernas', muscleGroup: 'Bíceps' },
+      { name: 'Curl predicador en máquina', muscleGroup: 'Bíceps' },
     ],
   },
   {
     key: 'legs',
     name: 'Pierna',
     exercises: [
-      { name: 'Prensa', muscleGroup: 'Pierna' },
-      { name: 'Sentadillas', muscleGroup: 'Pierna' },
-      { name: 'Extensión de cuádriceps sentado en máquina', muscleGroup: 'Cuádriceps' },
-      { name: 'Curl femoral sentado en máquina', muscleGroup: 'Femorales' },
-      { name: 'Aductores cerrando', muscleGroup: 'Pierna' },
-      { name: 'Aductores abriendo', muscleGroup: 'Pierna' },
+      { name: 'Prensa de piernas', muscleGroup: 'Pierna' },
+      { name: 'Sentadilla en máquina', muscleGroup: 'Pierna' },
       { name: 'Extensión de cuádriceps en máquina', muscleGroup: 'Cuádriceps' },
-      { name: 'Empuje de cadera en máquina (Puente de glúteos)', muscleGroup: 'Glúteos' },
+      { name: 'Curl femoral sentado en máquina', muscleGroup: 'Femorales' },
+      { name: 'Aductores en máquina', muscleGroup: 'Pierna' },
+      { name: 'Abductores en máquina', muscleGroup: 'Pierna' },
+      { name: 'Hip thrust en máquina', muscleGroup: 'Glúteos' },
       { name: 'Patada de glúteo en máquina', muscleGroup: 'Glúteos' },
-      { name: 'Elevación de talones en máquina de sentadillas (Power Squat)', muscleGroup: 'Gemelos' },
-      { name: 'Elevación de talones en máquina de prensa (Leg Press)', muscleGroup: 'Gemelos' },
+      { name: 'Gemelos en máquina de sentadilla', muscleGroup: 'Gemelos' },
+      { name: 'Gemelos en prensa', muscleGroup: 'Gemelos' },
     ],
   },
   {
@@ -63,14 +62,14 @@ const ROUTINES: { key: string; name: string; exercises: SeedExercise[] }[] = [
     name: 'Brazos',
     exercises: [
       { name: 'Press de hombro en máquina', muscleGroup: 'Hombro' },
-      { name: 'Press de hombro en máquina con algo de inclinación', muscleGroup: 'Hombro' },
-      { name: 'Elevaciones laterales con mancuerna', muscleGroup: 'Hombro' },
-      { name: 'Jalón de tríceps hacia abajo con cuerdas', muscleGroup: 'Tríceps' },
-      { name: 'Jalón de tríceps con una sola mano', muscleGroup: 'Tríceps' },
-      { name: 'Paralelas en máquina para tríceps', muscleGroup: 'Tríceps' },
-      { name: 'Elevación de mancuernas para bíceps', muscleGroup: 'Bíceps' },
-      { name: 'Elevación de mancuernas martillo para bíceps', muscleGroup: 'Bíceps' },
-      { name: 'Predicador para bíceps en máquina', muscleGroup: 'Bíceps' },
+      { name: 'Press de hombro inclinado en máquina', muscleGroup: 'Hombro' },
+      { name: 'Elevaciones laterales con mancuernas', muscleGroup: 'Hombro' },
+      { name: 'Extensión de tríceps en polea con cuerda', muscleGroup: 'Tríceps' },
+      { name: 'Extensión de tríceps en polea a una mano', muscleGroup: 'Tríceps' },
+      { name: 'Fondos de tríceps en máquina', muscleGroup: 'Tríceps' },
+      { name: 'Curl de bíceps con mancuernas', muscleGroup: 'Bíceps' },
+      { name: 'Curl martillo con mancuernas', muscleGroup: 'Bíceps' },
+      { name: 'Curl predicador en máquina', muscleGroup: 'Bíceps' },
     ],
   },
 ]
@@ -84,39 +83,39 @@ const FEMALE_ROUTINES: { key: string; name: string; exerciseNames: string[] }[] 
     key: 'female-day1-glutes-legs',
     name: 'Día 1 - Glúteo y Pierna',
     exerciseNames: [
-      'Sentadillas',
-      'Prensa',
-      'Empuje de cadera en máquina (Puente de glúteos)',
+      'Sentadilla en máquina',
+      'Prensa de piernas',
+      'Hip thrust en máquina',
       'Patada de glúteo en máquina',
       'Curl femoral sentado en máquina',
-      'Extensión de cuádriceps sentado en máquina',
-      'Elevación de talones en máquina de sentadillas (Power Squat)',
+      'Extensión de cuádriceps en máquina',
+      'Gemelos en máquina de sentadilla',
     ],
   },
   {
     key: 'female-day2-push',
     name: 'Día 2 - Empuje (Pecho, Hombro y Tríceps)',
     exerciseNames: [
-      'Press banca sentado empujando hacia delante',
-      'Press de pecho en máquina vertical',
+      'Press de pecho sentado en máquina',
+      'Press de pecho vertical en máquina',
       'Aperturas de pecho en máquina (Pec-Deck)',
       'Press de hombro en máquina',
-      'Elevaciones laterales con mancuerna',
-      'Jalón de tríceps hacia abajo con cuerdas',
-      'Paralelas en máquina para tríceps',
+      'Elevaciones laterales con mancuernas',
+      'Extensión de tríceps en polea con cuerda',
+      'Fondos de tríceps en máquina',
     ],
   },
   {
     key: 'female-day3-pull-glutes',
     name: 'Día 3 - Tirón y Glúteo (Espalda y Bíceps)',
     exerciseNames: [
-      'Máquina de espalda jalando abajo, agarre para dorsales',
-      'Máquina de espalda jalando de frente hacia la espalda',
-      'Elevación de mancuernas para bíceps',
-      'Predicador para bíceps en máquina',
+      'Jalón al pecho, agarre cerrado',
+      'Remo sentado en máquina',
+      'Curl de bíceps con mancuernas',
+      'Curl predicador en máquina',
       'Patada de glúteo en máquina',
-      'Aductores cerrando',
-      'Aductores abriendo',
+      'Aductores en máquina',
+      'Abductores en máquina',
     ],
   },
 ]
@@ -150,15 +149,130 @@ export async function ensureFemaleRoutinesSeeded() {
   })
 }
 
-// Exercises that changed name/meaning after the "no exclusive profile"
-// rework — matched and renamed in place (by old name) so existing logged
-// sets keep pointing at the same exerciseId.
+// Seed exercises renamed in place (by old name) so existing logged sets,
+// routine links and photos keep pointing at the same exerciseId. If an
+// exercise with the new name already exists (e.g. the two quad-extension
+// duplicates), the old one is merged into it instead. Applied in order, so
+// chained renames work.
 const RENAME_MAP: { from: string; to: string }[] = [
   {
     from: 'Empuje de cadera / patada de glúteo en máquina',
     to: 'Empuje de cadera en máquina (Puente de glúteos)',
   },
+  // Clearer names (2026-10-15).
+  { from: 'Press banca sentado empujando hacia delante', to: 'Press de pecho sentado en máquina' },
+  { from: 'Press de pecho en máquina vertical', to: 'Press de pecho vertical en máquina' },
+  { from: 'Press banca inclinado con mancuerna', to: 'Press inclinado con mancuernas' },
+  { from: 'Press banca inclinado en máquina', to: 'Press inclinado en máquina' },
+  { from: 'Press de hombro en máquina con algo de inclinación', to: 'Press de hombro inclinado en máquina' },
+  { from: 'Elevaciones laterales con mancuerna', to: 'Elevaciones laterales con mancuernas' },
+  { from: 'Jalón de tríceps hacia abajo con cuerdas', to: 'Extensión de tríceps en polea con cuerda' },
+  { from: 'Jalón de tríceps con una sola mano', to: 'Extensión de tríceps en polea a una mano' },
+  { from: 'Paralelas en máquina para tríceps', to: 'Fondos de tríceps en máquina' },
+  { from: 'Máquina de espalda jalando abajo, agarre ancho', to: 'Jalón al pecho, agarre ancho' },
+  { from: 'Máquina de espalda jalando abajo, agarre para dorsales', to: 'Jalón al pecho, agarre cerrado' },
+  { from: 'Máquina de espalda jalando de frente hacia la espalda', to: 'Remo sentado en máquina' },
+  { from: 'Máquina de espalda jalando desde arriba (dorsales y espalda media)', to: 'Jalón en máquina de discos' },
+  { from: 'Elevación de mancuernas para bíceps', to: 'Curl de bíceps con mancuernas' },
+  { from: 'Elevación de mancuernas martillo para bíceps', to: 'Curl martillo con mancuernas' },
+  { from: 'Predicador para bíceps en máquina', to: 'Curl predicador en máquina' },
+  { from: 'Prensa', to: 'Prensa de piernas' },
+  { from: 'Sentadillas', to: 'Sentadilla en máquina' },
+  { from: 'Aductores cerrando', to: 'Aductores en máquina' },
+  { from: 'Aductores abriendo', to: 'Abductores en máquina' },
+  { from: 'Empuje de cadera en máquina (Puente de glúteos)', to: 'Hip thrust en máquina' },
+  { from: 'Elevación de talones en máquina de sentadillas (Power Squat)', to: 'Gemelos en máquina de sentadilla' },
+  { from: 'Elevación de talones en máquina de prensa (Leg Press)', to: 'Gemelos en prensa' },
+  { from: 'Extensión de cuádriceps sentado en máquina', to: 'Extensión de cuádriceps en máquina' },
 ]
+
+// Extra catalog exercises that aren't part of any default routine, so new
+// users have plenty to build routines from. Same upsert-by-name and
+// tombstone rules as the routine exercises.
+const CATALOG: SeedExercise[] = [
+  { name: 'Press de banca con barra', muscleGroup: 'Pecho' },
+  { name: 'Press de banca con mancuernas', muscleGroup: 'Pecho' },
+  { name: 'Cruce de poleas', muscleGroup: 'Pecho' },
+  { name: 'Fondos en paralelas', muscleGroup: 'Pecho' },
+  { name: 'Dominadas', muscleGroup: 'Espalda' },
+  { name: 'Remo con barra', muscleGroup: 'Espalda' },
+  { name: 'Remo con mancuerna a una mano', muscleGroup: 'Espalda' },
+  { name: 'Remo sentado en polea', muscleGroup: 'Espalda' },
+  { name: 'Remo con pecho apoyado', muscleGroup: 'Espalda' },
+  { name: 'Pullover en polea alta', muscleGroup: 'Espalda' },
+  { name: 'Peso muerto', muscleGroup: 'Espalda' },
+  { name: 'Press militar con barra', muscleGroup: 'Hombro' },
+  { name: 'Press de hombro con mancuernas', muscleGroup: 'Hombro' },
+  { name: 'Elevaciones laterales en polea', muscleGroup: 'Hombro' },
+  { name: 'Pájaros con mancuernas', muscleGroup: 'Hombro' },
+  { name: 'Face pull en polea', muscleGroup: 'Hombro' },
+  { name: 'Aperturas inversas en máquina', muscleGroup: 'Hombro' },
+  { name: 'Curl con barra', muscleGroup: 'Bíceps' },
+  { name: 'Curl inclinado con mancuernas', muscleGroup: 'Bíceps' },
+  { name: 'Curl en polea baja', muscleGroup: 'Bíceps' },
+  { name: 'Curl en polea con el codo atrás (bayesiano)', muscleGroup: 'Bíceps' },
+  { name: 'Extensión de tríceps sobre la cabeza en polea', muscleGroup: 'Tríceps' },
+  { name: 'Press francés con barra Z', muscleGroup: 'Tríceps' },
+  { name: 'Press de banca con agarre cerrado', muscleGroup: 'Tríceps' },
+  { name: 'Sentadilla con barra', muscleGroup: 'Cuádriceps' },
+  { name: 'Sentadilla hack', muscleGroup: 'Cuádriceps' },
+  { name: 'Sentadilla búlgara', muscleGroup: 'Cuádriceps' },
+  { name: 'Zancadas con mancuernas', muscleGroup: 'Cuádriceps' },
+  { name: 'Peso muerto rumano', muscleGroup: 'Femorales' },
+  { name: 'Curl femoral tumbado', muscleGroup: 'Femorales' },
+  { name: 'Curl nórdico', muscleGroup: 'Femorales' },
+  { name: 'Buenos días con barra', muscleGroup: 'Femorales' },
+  { name: 'Hip thrust con barra', muscleGroup: 'Glúteos' },
+  { name: 'Patada de glúteo en polea', muscleGroup: 'Glúteos' },
+  { name: 'Subida al cajón con mancuernas', muscleGroup: 'Glúteos' },
+  { name: 'Hiperextensión a 45°', muscleGroup: 'Glúteos' },
+  { name: 'Gemelos de pie en máquina', muscleGroup: 'Gemelos' },
+  { name: 'Gemelos sentado en máquina', muscleGroup: 'Gemelos' },
+  { name: 'Crunch en polea alta', muscleGroup: 'Abdomen' },
+  { name: 'Elevación de piernas colgado', muscleGroup: 'Abdomen' },
+  { name: 'Plancha', muscleGroup: 'Abdomen' },
+  { name: 'Rueda abdominal', muscleGroup: 'Abdomen' },
+  { name: 'Pallof press en polea', muscleGroup: 'Abdomen' },
+]
+
+// Renames `from` to `to`, or merges it into an existing `to`, carrying over
+// the user's tombstones so nothing deleted under the old name comes back.
+async function applyRename(from: string, to: string) {
+  // Carried over even when the old exercise is already gone: that's exactly
+  // the "user deleted it" case that must not resurrect under the new name.
+  for (const { key } of await db.seedTombstones.toArray()) {
+    if (key === tombstoneKeys.exercise(from)) await addSeedTombstone(tombstoneKeys.exercise(to))
+    if (key.startsWith('link:') && key.endsWith(':' + from)) {
+      await addSeedTombstone(key.slice(0, key.length - from.length) + to)
+    }
+  }
+
+  const source = await db.exercises.where('name').equals(from).first()
+  if (!source?.id) return
+
+  const target = await db.exercises.where('name').equals(to).first()
+  if (!target?.id) {
+    await db.exercises.update(source.id, { name: to })
+    return
+  }
+
+  // Both exist: move history and routine links to the one that stays.
+  const targetId = target.id
+  await db.sets.where('exerciseId').equals(source.id).modify({ exerciseId: targetId })
+  const linkedRoutines = new Set(
+    (await db.routineExercises.where('exerciseId').equals(targetId).toArray()).map((l) => l.routineId),
+  )
+  for (const link of await db.routineExercises.where('exerciseId').equals(source.id).toArray()) {
+    if (linkedRoutines.has(link.routineId)) await db.routineExercises.delete(link.id!)
+    else await db.routineExercises.update(link.id!, { exerciseId: targetId })
+  }
+  const sourcePhoto = await db.exercisePhotos.get(source.id)
+  if (sourcePhoto && !(await db.exercisePhotos.get(targetId))) {
+    await db.exercisePhotos.put({ ...sourcePhoto, exerciseId: targetId })
+  }
+  await db.exercisePhotos.delete(source.id)
+  await db.exercises.delete(source.id)
+}
 
 // Old free-text muscle group values (from before the fixed MUSCLE_GROUPS
 // list) mapped to their new fixed category, so exercises the user created
@@ -175,12 +289,10 @@ const MUSCLE_GROUP_RENAME_MAP: { from: string; to: MuscleGroup }[] = [
 // already exists, so future additions to ROUTINES reach devices that
 // were already seeded.
 export async function ensureExercisesSeeded() {
-  await db.transaction('rw', db.routines, db.exercises, db.routineExercises, db.seedTombstones, async () => {
+  const tables = [db.routines, db.exercises, db.routineExercises, db.seedTombstones, db.sets, db.exercisePhotos]
+  await db.transaction('rw', tables, async () => {
     for (const rename of RENAME_MAP) {
-      const existing = await db.exercises.where('name').equals(rename.from).first()
-      if (existing) {
-        await db.exercises.update(existing.id!, { name: rename.to })
-      }
+      await applyRename(rename.from, rename.to)
     }
 
     const allExercises = (await db.exercises.toArray()) as { id: number; muscleGroup: string }[]
@@ -221,6 +333,12 @@ export async function ensureExercisesSeeded() {
           nextOrder++
         }
       }
+    }
+
+    for (const ex of CATALOG) {
+      if (await isSeedTombstoned(tombstoneKeys.exercise(ex.name))) continue
+      if (await db.exercises.where('name').equals(ex.name).first()) continue
+      await db.exercises.add({ name: ex.name, muscleGroup: ex.muscleGroup, order: 0 })
     }
   })
 }

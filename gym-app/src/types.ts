@@ -92,6 +92,9 @@ export interface ExercisePhoto {
   exerciseId: number
   blob: Blob
   updatedAt: string
+  // Set only on bundled factory photos; photos the user takes have neither.
+  source?: 'seed'
+  seedVersion?: number
 }
 
 export interface SeedTombstone {

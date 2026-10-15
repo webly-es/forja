@@ -38,6 +38,7 @@ export function Settings() {
   const [keyStatus, setKeyStatus] = useState<string | null>(null)
   const [testingKey, setTestingKey] = useState(false)
   const [showShortcutHelp, setShowShortcutHelp] = useState(false)
+  const [showKeyHelp, setShowKeyHelp] = useState(false)
 
   async function handleSaveGemini() {
     setGeminiApiKey(keyDraft)
@@ -266,6 +267,52 @@ export function Settings() {
           </button>
           {keyStatus && <p className="text-xs text-accent">{keyStatus}</p>}
         </div>
+      </section>
+
+      <section>
+        <button
+          onClick={() => setShowKeyHelp((v) => !v)}
+          className="flex w-full items-center justify-between rounded-xl border border-border bg-surface p-4 text-left text-sm text-text transition-colors hover:border-accent"
+        >
+          Cómo crear tu clave de Gemini (gratis)
+          <ChevronDown size={16} className={`text-text-muted transition-transform ${showKeyHelp ? 'rotate-180' : ''}`} />
+        </button>
+        {showKeyHelp && (
+          <div className="mt-2 rounded-xl border border-border bg-surface p-4 text-sm text-text-muted">
+            <p>Solo necesitas una cuenta de Google. Tarda un par de minutos y no pide tarjeta.</p>
+            <ol className="mt-3 list-decimal space-y-1.5 pl-5">
+              <li>
+                Abre{' '}
+                <a
+                  href="https://aistudio.google.com/apikey"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-accent hover:underline"
+                >
+                  aistudio.google.com/apikey
+                </a>{' '}
+                e inicia sesión con tu cuenta de Google.
+              </li>
+              <li>La primera vez, acepta las condiciones de Google AI Studio.</li>
+              <li>
+                Pulsa <span className="text-text">Create API key</span> (Crear clave de API). Si te pregunta por un
+                proyecto, elige el que te propone o crea uno nuevo.
+              </li>
+              <li>
+                Copia la clave que aparece (es un texto largo que empieza por <span className="text-text">AQ.</span> o{' '}
+                <span className="text-text">AIza</span>).
+              </li>
+              <li>
+                Vuelve aquí, pégala en <span className="text-text">Clave</span>, deja el modelo como está y pulsa{' '}
+                <span className="text-text">Guardar y probar</span>.
+              </li>
+            </ol>
+            <p className="mt-3">
+              La clave se guarda solo en este dispositivo: si usas la app en otro móvil, pégala también allí. No la
+              compartas con nadie; si crees que alguien la tiene, bórrala en AI Studio y crea otra.
+            </p>
+          </div>
+        )}
       </section>
 
       <section>
