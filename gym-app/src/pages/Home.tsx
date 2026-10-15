@@ -6,6 +6,9 @@ import { StatCard } from '../components/StatCard'
 import { getBMI, getBMICategory, getTargetCalories, getMacros, getAge } from '../lib/metrics'
 import { useDayBalance } from '../hooks/useDayBalance'
 import { todayKey } from '../lib/dates'
+import { getRoutineSummaries, type RoutineSummary } from '../db/queries'
+import { coverUrl, HERO_IMAGE } from '../lib/routineCovers'
+import { CalorieRing } from '../components/CalorieRing'
 import { ChevronRight, Dumbbell } from 'lucide-react'
 
 function formatRelativeDate(iso: string): string {
@@ -46,6 +49,7 @@ export function Home() {
   )
 
   const today = useDayBalance(activeProfileId, todayKey())
+  const summaries = useLiveQuery(getRoutineSummaries, [], {} as Record<number, RoutineSummary>)
 
   if (!profile) return null
 
@@ -54,30 +58,33 @@ export function Home() {
   const macros = getMacros(profile)
   const age = getAge(profile.birthDate)
 
+  const lastCover = lastSession ? (summaries[lastSession.routineId]?.cover ?? 'general') : null
+  const balance = today ? Math.round(today.consumed.kcal - today.energy.total) : 0
+
   return (
     <div className="flex flex-col gap-6">
-      <div className="relative -mx-4 overflow-hidden px-4 pb-2 pt-4">
-        <div
-          className="pointer-events-none absolute -top-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full"
-          style={{
-            background: 'radial-gradient(closest-side, rgba(201,151,63,0.16), rgba(201,151,63,0) 70%)',
-            filter: 'blur(24px)',
-          }}
+      <div className="relative -mx-4 -mt-6 overflow-hidden px-4 pb-4 pt-10">
+        <img
+          src={HERO_IMAGE}
+          alt=""
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[70%_center] opacity-90"
           aria-hidden="true"
         />
         <div
-          className="pointer-events-none absolute inset-0 opacity-[0.05] mix-blend-overlay"
-          style={{
-            backgroundImage:
-              "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
-          }}
+          className="pointer-events-none absolute inset-0 bg-gradient-to-r from-bg via-bg/70 to-transparent"
+          aria-hidden="true"
+        />
+        <div
+          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-bg via-bg/30 to-bg/40"
           aria-hidden="true"
         />
 
-        <div className="relative">
-          <p className="text-xs font-medium uppercase tracking-[0.2em] text-accent">Tu progreso hoy</p>
-          <h1 className="mt-1.5 text-3xl font-bold tracking-tight text-text">Hola, {profile.name}</h1>
-          <div className="mt-3 h-px w-12 bg-gradient-to-r from-accent to-transparent" />
+        <div className="relative pt-28">
+          <p className="text-xs font-medium uppercase tracking-[0.25em] text-accent">Tu progreso hoy</p>
+          <h1 className="mt-1.5 font-display text-4xl font-medium uppercase tracking-wide text-text">
+            Hola, {profile.name}
+          </h1>
+          <div className="mt-3 h-px w-14 bg-gradient-to-r from-accent to-transparent" />
           <p className="mt-3 text-sm text-text-muted">
             {age} años · {profile.heightCm} cm · {(lastWeightLog?.weightKg ?? profile.weightKg)} kg
           </p>
@@ -86,15 +93,25 @@ export function Home() {
 
       <button
         onClick={() => navigate('/workout/start')}
-        className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-accent-hover to-accent py-4 font-semibold text-bg shadow-[0_8px_24px_-6px_rgba(201,151,63,0.5)] transition-all duration-150 active:scale-[0.97] active:shadow-[0_4px_12px_-4px_rgba(201,151,63,0.4)]"
+        className="-mt-2 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-[#e2b866] via-accent to-[#a87a2c] py-4 font-semibold text-bg shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_10px_28px_-8px_rgba(201,151,63,0.55)] transition-all duration-150 active:scale-[0.97]"
       >
         <Dumbbell size={20} />
         Empezar entrenamiento
       </button>
 
-      <div className="rounded-2xl border border-accent-muted/60 bg-gradient-to-b from-surface to-surface-2 p-4">
+      <div className="card-forged relative overflow-hidden p-4">
+        {lastCover && (
+          <>
+            <img
+              src={coverUrl(lastCover)}
+              alt=""
+              className="absolute inset-y-0 right-0 -z-10 h-full w-2/3 object-cover object-right"
+            />
+            <div className="absolute inset-0 -z-10 bg-gradient-to-r from-surface via-surface/85 to-surface/10" />
+          </>
+        )}
         <div className="text-xs uppercase tracking-wide text-text-muted">Último entrenamiento</div>
-        <div className="mt-1 text-xl font-semibold text-text">
+        <div className="mt-1 font-display text-2xl font-medium uppercase tracking-wide text-text">
           {lastSession ? lastSession.routineName : 'Aún sin registros'}
         </div>
         {lastSession && (
@@ -105,28 +122,25 @@ export function Home() {
       {today && (
         <button
           onClick={() => navigate('/food')}
-          className="rounded-xl border border-border bg-surface p-4 text-left transition-colors hover:border-accent"
+          className="card-forged flex items-center gap-4 p-4 text-left transition-colors hover:border-accent-muted"
         >
-          <div className="flex items-center justify-between">
-            <div className="text-xs uppercase tracking-wide text-text-muted">Hoy</div>
-            <ChevronRight size={16} className="text-text-muted" />
-          </div>
-          <div className="mt-2 grid grid-cols-3">
-            <div>
-              <div className="text-lg font-semibold text-text">{Math.round(today.consumed.kcal)}</div>
-              <div className="text-xs text-text-muted">consumidas</div>
+          <CalorieRing consumed={today.consumed.kcal} target={calories} />
+          <div className="flex min-w-0 flex-1 flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs uppercase tracking-wide text-text-muted">Hoy</span>
+              <ChevronRight size={16} className="text-text-muted" />
             </div>
-            <div>
-              <div className="text-lg font-semibold text-text">{today.energy.total}</div>
-              <div className="text-xs text-text-muted">gastadas</div>
+            <div className="flex items-baseline justify-between">
+              <span className="text-xs text-text-muted">Consumidas</span>
+              <span className="font-display text-lg text-text">{Math.round(today.consumed.kcal)}</span>
             </div>
-            <div>
-              <div className="text-lg font-semibold text-accent">
-                {Math.abs(Math.round(today.consumed.kcal - today.energy.total))}
-              </div>
-              <div className="text-xs text-text-muted">
-                {today.consumed.kcal - today.energy.total <= 0 ? 'déficit' : 'superávit'}
-              </div>
+            <div className="flex items-baseline justify-between">
+              <span className="text-xs text-text-muted">Gastadas</span>
+              <span className="font-display text-lg text-text">{today.energy.total}</span>
+            </div>
+            <div className="flex items-baseline justify-between">
+              <span className="text-xs text-text-muted">{balance <= 0 ? 'Déficit' : 'Superávit'}</span>
+              <span className="font-display text-lg text-accent">{Math.abs(balance)}</span>
             </div>
           </div>
         </button>

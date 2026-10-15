@@ -1,6 +1,8 @@
 import { db } from './db'
 import type { SetLog } from '../types'
 import { addSeedTombstone, tombstoneKeys } from './seedTombstones'
+import { coverForGroups, type RoutineCover } from '../lib/routineCovers'
+import type { MuscleGroup } from '../lib/muscleGroups'
 
 // Starting a routine (StartWorkout.startRoutine) creates a workoutSessions
 // row immediately, before any set is logged. If the user backs out or closes
@@ -165,4 +167,28 @@ export async function setDailySteps(profileId: number, date: string, steps: numb
   } else {
     await db.dailySteps.add({ profileId, date, steps })
   }
+}
+
+export interface RoutineSummary {
+  exerciseCount: number
+  cover: RoutineCover
+}
+
+// Exercise count and cover image for every routine, keyed by routine id.
+export async function getRoutineSummaries(): Promise<Record<number, RoutineSummary>> {
+  const [links, exercises] = await Promise.all([db.routineExercises.toArray(), db.exercises.toArray()])
+  const groupById = new Map(exercises.map((e) => [e.id!, e.muscleGroup]))
+  const groupsByRoutine = new Map<number, MuscleGroup[]>()
+  for (const link of links) {
+    const group = groupById.get(link.exerciseId)
+    const groups = groupsByRoutine.get(link.routineId) ?? []
+    if (group) groups.push(group)
+    groupsByRoutine.set(link.routineId, groups)
+  }
+  const summaries: Record<number, RoutineSummary> = {}
+  for (const link of links) {
+    summaries[link.routineId] ??= { exerciseCount: 0, cover: coverForGroups(groupsByRoutine.get(link.routineId) ?? []) }
+    summaries[link.routineId].exerciseCount++
+  }
+  return summaries
 }

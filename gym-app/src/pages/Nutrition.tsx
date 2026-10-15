@@ -159,7 +159,7 @@ export function Nutrition() {
 
   const linkButton =
     'flex items-center gap-1.5 text-xs text-accent underline decoration-accent/40 underline-offset-4 transition-colors hover:text-accent-hover'
-  const card = 'rounded-2xl border border-white/10 bg-bg'
+  const card = 'card-forged'
 
   return (
     <div className="flex flex-col gap-5">

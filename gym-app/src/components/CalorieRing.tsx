@@ -45,7 +45,7 @@ export function CalorieRing({ consumed, target }: CalorieRingProps) {
   const over = remaining < 0
   return (
     <Ring value={consumed} target={target} size={120} stroke={8} over={over}>
-      <div className={`text-2xl font-semibold tracking-tight ${over ? 'text-danger' : 'text-accent'}`}>
+      <div className={`font-display text-3xl font-medium tabular-nums ${over ? 'text-danger' : 'text-accent'}`}>
         {Math.abs(remaining).toLocaleString('es')}
       </div>
       <div className="text-[10px] uppercase tracking-wide text-text-muted">{over ? 'kcal de más' : 'kcal restantes'}</div>
