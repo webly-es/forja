@@ -18,6 +18,8 @@ interface FoodEntrySheetProps {
   initialAnalysis?: FoodAnalysis
   initialPhoto?: File
   initialNote?: string
+  // Meal preselected when adding from an empty meal card.
+  initialMeal?: MealType
   onClose: () => void
 }
 
@@ -61,6 +63,7 @@ export function FoodEntrySheet({
   initialAnalysis,
   initialPhoto,
   initialNote,
+  initialMeal,
   onClose,
 }: FoodEntrySheetProps) {
   const navigate = useNavigate()
@@ -73,7 +76,7 @@ export function FoodEntrySheet({
   const fromDescription = initialAnalysis != null && initialPhoto == null
 
   const [name, setName] = useState(entry?.name ?? initialAnalysis?.dishName ?? '')
-  const [meal, setMeal] = useState<MealType>(entry?.meal ?? mealForHour(new Date().getHours()))
+  const [meal, setMeal] = useState<MealType>(entry?.meal ?? initialMeal ?? mealForHour(new Date().getHours()))
   const [items, setItems] = useState<FoodItem[]>(entry?.items ?? initialAnalysis?.items ?? [])
   const [manual, setManual] = useState({
     kcal: entry && !entry.items ? String(entry.kcal) : '',

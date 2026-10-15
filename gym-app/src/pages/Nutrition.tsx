@@ -10,18 +10,20 @@ import { MEAL_LABELS, MEAL_TYPES, mealForHour, type MealType } from '../lib/meal
 import type { FoodAnalysis } from '../lib/gemini'
 import { FoodEntrySheet } from '../components/FoodEntrySheet'
 import { FoodComposer } from '../components/FoodComposer'
-import { CalorieRing, MacroRing } from '../components/CalorieRing'
+import { Bar, CalorieRing, MacroBar } from '../components/CalorieRing'
 import type { FoodEntry } from '../types'
 import {
   Apple,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   ClipboardPaste,
   Coffee,
   Footprints,
   Moon,
   PenLine,
+  Plus,
   RotateCcw,
   Sun,
   Utensils,
@@ -31,6 +33,7 @@ import {
 type SheetState = {
   mode: 'photo' | 'manual'
   entry?: FoodEntry
+  meal?: MealType
   analysis?: FoodAnalysis
   photo?: File
   note?: string
@@ -43,7 +46,15 @@ const MEAL_ICONS: Record<MealType, LucideIcon> = {
   snack: Apple,
 }
 
-function FoodThumb({ photo }: { photo?: Blob }) {
+function FoodThumb({
+  photo,
+  icon: Icon = Utensils,
+  className = 'h-11 w-11',
+}: {
+  photo?: Blob
+  icon?: LucideIcon
+  className?: string
+}) {
   const [url, setUrl] = useState<string | null>(null)
   useEffect(() => {
     if (!photo) {
@@ -56,10 +67,16 @@ function FoodThumb({ photo }: { photo?: Blob }) {
   }, [photo])
 
   return (
-    <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-surface-2 text-text-muted">
-      {url ? <img src={url} alt="" className="h-full w-full object-cover" /> : <Utensils size={16} />}
+    <div
+      className={`flex shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-surface-2 text-text-muted ${className}`}
+    >
+      {url ? <img src={url} alt="" className="h-full w-full object-cover" /> : <Icon size={16} strokeWidth={1.5} />}
     </div>
   )
+}
+
+function entryGrams(entry: FoodEntry): number {
+  return entry.items?.reduce((sum, item) => sum + item.grams, 0) ?? 0
 }
 
 export function Nutrition() {
@@ -68,6 +85,7 @@ export function Nutrition() {
   const [sheet, setSheet] = useState<SheetState>(null)
   const [showRecent, setShowRecent] = useState(false)
   const [showSpend, setShowSpend] = useState(false)
+  const [openMeal, setOpenMeal] = useState<MealType | null>(null)
   const [editingSteps, setEditingSteps] = useState(false)
   const [stepsDraft, setStepsDraft] = useState('')
   const [stepsStatus, setStepsStatus] = useState<string | null>(null)
@@ -100,6 +118,7 @@ export function Nutrition() {
   const targetKcal = getTargetCalories(profile)
   const macros = getMacros(profile)
   const balance = Math.round(day.consumed.kcal - day.energy.total)
+  const barScale = Math.max(targetKcal, day.consumed.kcal, day.energy.total)
 
   function flashStepsStatus(message: string) {
     setStepsStatus(message)
@@ -138,57 +157,67 @@ export function Nutrition() {
     setShowRecent(false)
   }
 
-  const linkButton = 'flex items-center gap-1.5 text-xs transition-colors hover:text-accent'
+  const linkButton =
+    'flex items-center gap-1.5 text-xs text-accent underline decoration-accent/40 underline-offset-4 transition-colors hover:text-accent-hover'
+  const card = 'rounded-2xl border border-white/10 bg-bg'
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight text-text">Comida</h1>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center rounded-full border border-white/10 bg-surface">
           <button
             onClick={() => setDateKey((d) => shiftDateKey(d, -1))}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-text-muted hover:text-text"
+            className="flex h-8 w-8 items-center justify-center text-text-muted hover:text-text"
             aria-label="Día anterior"
           >
-            <ChevronLeft size={16} />
+            <ChevronLeft size={15} />
           </button>
-          <span className="min-w-20 text-center text-sm capitalize text-text">{formatDateKey(dateKey)}</span>
+          <span className="min-w-14 text-center text-xs font-medium capitalize text-text">{formatDateKey(dateKey)}</span>
           <button
             onClick={() => setDateKey((d) => shiftDateKey(d, 1))}
             disabled={isToday}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-text-muted hover:text-text disabled:opacity-30"
+            className="flex h-8 w-8 items-center justify-center text-text-muted hover:text-text disabled:opacity-30"
             aria-label="Día siguiente"
           >
-            <ChevronRight size={16} />
+            <ChevronRight size={15} />
           </button>
         </div>
       </div>
 
-      <section className="rounded-2xl border border-accent-muted/60 bg-gradient-to-b from-surface to-surface-2 p-5">
-        <div className="flex justify-center">
+      <section className={`${card} p-4`}>
+        <div className="flex items-center gap-4">
           <CalorieRing consumed={day.consumed.kcal} target={targetKcal} />
-        </div>
-
-        <div className="mt-5 grid grid-cols-3 text-center">
-          <div>
-            <div className="text-[11px] uppercase tracking-wide text-text-muted">Consumido</div>
-            <div className="mt-0.5 text-lg font-semibold text-text">{Math.round(day.consumed.kcal)}</div>
-          </div>
-          <button onClick={() => setShowSpend((v) => !v)} aria-expanded={showSpend}>
-            <div className="flex items-center justify-center gap-0.5 text-[11px] uppercase tracking-wide text-text-muted">
-              Gastado
-              <ChevronDown size={12} className={`transition-transform ${showSpend ? 'rotate-180' : ''}`} />
+          <div className="flex min-w-0 flex-1 flex-col gap-2.5">
+            <div>
+              <div className="mb-1 flex items-baseline justify-between">
+                <span className="text-[11px] uppercase tracking-wide text-text-muted">Consumido</span>
+                <span className="text-sm font-semibold text-text">{Math.round(day.consumed.kcal).toLocaleString('es')}</span>
+              </div>
+              <Bar value={day.consumed.kcal} target={barScale} muted />
             </div>
-            <div className="mt-0.5 text-lg font-semibold text-text">{day.energy.total}</div>
-          </button>
-          <div>
-            <div className="text-[11px] uppercase tracking-wide text-text-muted">{balance <= 0 ? 'Déficit' : 'Superávit'}</div>
-            <div className="mt-0.5 text-lg font-semibold text-accent">{Math.abs(balance)}</div>
+            <button onClick={() => setShowSpend((v) => !v)} aria-expanded={showSpend} className="text-left">
+              <div className="mb-1 flex items-baseline justify-between">
+                <span className="flex items-center gap-0.5 text-[11px] uppercase tracking-wide text-text-muted">
+                  Gastado
+                  <ChevronDown size={12} className={`transition-transform ${showSpend ? 'rotate-180' : ''}`} />
+                </span>
+                <span className="text-sm font-semibold text-text">{day.energy.total.toLocaleString('es')}</span>
+              </div>
+              <Bar value={day.energy.total} target={barScale} muted />
+            </button>
+            <div>
+              <div className="mb-1 flex items-baseline justify-between">
+                <span className="text-[11px] uppercase tracking-wide text-text-muted">{balance <= 0 ? 'Déficit' : 'Superávit'}</span>
+                <span className="text-sm font-semibold text-accent">{Math.abs(balance).toLocaleString('es')}</span>
+              </div>
+              <Bar value={Math.abs(balance)} target={barScale} />
+            </div>
           </div>
         </div>
 
         {showSpend && (
-          <div className="mt-3 grid grid-cols-4 gap-1 rounded-xl bg-bg/40 py-2.5 text-center text-[11px] text-text-muted">
+          <div className="mt-4 grid grid-cols-4 gap-1 rounded-xl bg-surface py-2.5 text-center text-[11px] text-text-muted">
             <div>
               <div className="text-sm text-text">{day.energy.bmr}</div>
               En reposo
@@ -208,17 +237,17 @@ export function Nutrition() {
           </div>
         )}
 
-        <div className="mt-5 grid grid-cols-3 border-t border-border pt-5">
-          <MacroRing label="Proteína" value={day.consumed.proteinG} target={macros.proteinG} />
-          <MacroRing label="Carbos" value={day.consumed.carbsG} target={macros.carbsG} />
-          <MacroRing label="Grasa" value={day.consumed.fatG} target={macros.fatG} />
+        <div className="mt-4 grid grid-cols-3 gap-4 border-t border-white/10 pt-4">
+          <MacroBar label="Proteína" value={day.consumed.proteinG} target={macros.proteinG} />
+          <MacroBar label="Carbos" value={day.consumed.carbsG} target={macros.carbsG} />
+          <MacroBar label="Grasa" value={day.consumed.fatG} target={macros.fatG} />
         </div>
       </section>
 
       <section>
         <FoodComposer onAnalyzed={(analysis, photo, note) => setSheet({ mode: 'photo', analysis, photo, note })} />
-        <div className="mt-3 flex items-center justify-center gap-6 text-text-muted">
-          <button onClick={() => setShowRecent((v) => !v)} className={`${linkButton} ${showRecent ? 'text-accent' : ''}`}>
+        <div className="mt-3 flex items-center justify-center gap-6">
+          <button onClick={() => setShowRecent((v) => !v)} className={linkButton}>
             <RotateCcw size={13} />
             Repetir reciente
           </button>
@@ -233,16 +262,16 @@ export function Nutrition() {
         <section>
           <h2 className="mb-3 text-xs uppercase tracking-wide text-text-muted">Comidas recientes</h2>
           {recent && recent.length > 0 ? (
-            <div className="overflow-hidden rounded-xl border border-border bg-surface">
+            <div className={`overflow-hidden ${card}`}>
               {recent.map((e, i) => (
                 <button
                   key={e.id}
                   onClick={() => repeatEntry(e)}
-                  className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-2 ${
-                    i > 0 ? 'border-t border-border' : ''
+                  className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-surface ${
+                    i > 0 ? 'border-t border-white/10' : ''
                   }`}
                 >
-                  <FoodThumb photo={e.photo} />
+                  <FoodThumb photo={e.photo} icon={MEAL_ICONS[e.meal]} />
                   <span className="min-w-0 flex-1 truncate text-sm text-text">{e.name}</span>
                   <span className="text-xs text-text-muted">{e.kcal} kcal</span>
                 </button>
@@ -254,61 +283,104 @@ export function Nutrition() {
         </section>
       )}
 
-      {MEAL_TYPES.map((meal) => {
-        const entries = day.entries.filter((e) => e.meal === meal)
-        if (entries.length === 0) return null
-        const Icon = MEAL_ICONS[meal]
-        const total = entries.reduce(
-          (acc, e) => ({ kcal: acc.kcal + e.kcal, p: acc.p + e.proteinG, c: acc.c + e.carbsG, f: acc.f + e.fatG }),
-          { kcal: 0, p: 0, c: 0, f: 0 },
-        )
-        return (
-          <section key={meal} className="overflow-hidden rounded-2xl border border-border bg-surface">
-            <div className="flex items-center gap-3 border-b border-border px-4 py-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent-muted/50 text-accent">
-                <Icon size={16} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium text-text">{MEAL_LABELS[meal]}</div>
-                <div className="text-[11px] text-text-muted">
-                  P {total.p} g · C {total.c} g · G {total.f} g
-                </div>
-              </div>
-              <div className="text-sm font-semibold text-accent">{total.kcal} kcal</div>
-            </div>
-            {entries.map((e, i) => (
+      <section className="grid grid-cols-2 gap-3">
+        {MEAL_TYPES.map((meal) => {
+          const entries = day.entries.filter((e) => e.meal === meal)
+          const Icon = MEAL_ICONS[meal]
+
+          if (entries.length === 0) {
+            return (
               <button
-                key={e.id}
-                onClick={() => setSheet({ mode: e.items ? 'photo' : 'manual', entry: e })}
-                className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-2 ${
-                  i > 0 ? 'border-t border-border' : ''
-                }`}
+                key={meal}
+                onClick={() => setSheet({ mode: 'manual', meal })}
+                className="flex min-h-36 flex-col rounded-2xl border border-dashed border-white/10 p-3 text-left transition-colors hover:border-accent-muted"
               >
-                <FoodThumb photo={e.photo} />
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm text-text">{e.name}</div>
-                  <div className="text-xs text-text-muted">
-                    P {e.proteinG} g · C {e.carbsG} g · G {e.fatG} g
-                  </div>
-                </div>
-                <span className="text-sm font-medium text-text">{e.kcal}</span>
+                <span className="text-[11px] font-medium uppercase tracking-wide text-text-muted">{MEAL_LABELS[meal]}</span>
+                <span className="flex flex-1 flex-col items-center justify-center gap-1.5 text-text-muted/70">
+                  <Icon size={18} strokeWidth={1.5} />
+                  <span className="flex items-center gap-1 text-xs">
+                    <Plus size={12} />
+                    Añadir
+                  </span>
+                </span>
               </button>
-            ))}
-          </section>
-        )
-      })}
+            )
+          }
 
-      {day.entries.length === 0 && (
-        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border px-6 py-8 text-center">
-          <Utensils size={22} className="text-accent" />
-          <p className="text-sm text-text">
-            {isToday ? 'Aún no has registrado comidas hoy' : 'No hay comidas registradas este día'}
-          </p>
-          <p className="text-xs text-text-muted">Escribe, habla o haz una foto y la IA calcula el resto.</p>
-        </div>
-      )}
+          const kcal = entries.reduce((sum, e) => sum + e.kcal, 0)
+          const grams = entries.reduce((sum, e) => sum + entryGrams(e), 0)
 
-      <section className="rounded-xl border border-border bg-surface px-4 py-3">
+          if (openMeal === meal) {
+            return (
+              <div key={meal} className={`col-span-2 overflow-hidden ${card}`}>
+                <button
+                  onClick={() => setOpenMeal(null)}
+                  aria-expanded
+                  className="flex w-full items-center gap-2 border-b border-white/10 px-4 py-3 text-left"
+                >
+                  <span className="flex-1 text-[11px] font-medium uppercase tracking-wide text-text-muted">
+                    {MEAL_LABELS[meal]}
+                  </span>
+                  <span className="text-sm font-semibold text-accent">{kcal} kcal</span>
+                  <ChevronUp size={15} className="text-text-muted" />
+                </button>
+                {entries.map((e, i) => (
+                  <button
+                    key={e.id}
+                    onClick={() => setSheet({ mode: e.items ? 'photo' : 'manual', entry: e })}
+                    className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-surface ${
+                      i > 0 ? 'border-t border-white/10' : ''
+                    }`}
+                  >
+                    <FoodThumb photo={e.photo} icon={Icon} />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm text-text">{e.name}</div>
+                      <div className="text-xs text-text-muted">
+                        P {e.proteinG} g · C {e.carbsG} g · G {e.fatG} g
+                      </div>
+                    </div>
+                    <span className="text-sm font-medium text-text">{e.kcal}</span>
+                  </button>
+                ))}
+                <button
+                  onClick={() => setSheet({ mode: 'manual', meal })}
+                  className="flex w-full items-center justify-center gap-1 border-t border-white/10 py-2.5 text-xs text-text-muted transition-colors hover:text-accent"
+                >
+                  <Plus size={12} />
+                  Añadir a {MEAL_LABELS[meal].toLowerCase()}
+                </button>
+              </div>
+            )
+          }
+
+          return (
+            <button
+              key={meal}
+              onClick={() => setOpenMeal(meal)}
+              className={`flex min-h-36 flex-col gap-2 p-3 text-left transition-colors hover:border-accent-muted ${card}`}
+            >
+              <span className="text-[11px] font-medium uppercase tracking-wide text-text-muted">{MEAL_LABELS[meal]}</span>
+              <div className="flex gap-1.5">
+                {entries.slice(0, 2).map((e) => (
+                  <FoodThumb key={e.id} photo={e.photo} icon={Icon} className="h-12 flex-1" />
+                ))}
+              </div>
+              <div className="mt-auto min-w-0">
+                <div className="truncate text-sm text-text">
+                  {entries[0].name}
+                  {entries.length > 1 && <span className="text-text-muted"> +{entries.length - 1}</span>}
+                </div>
+                <div className="text-xs text-text-muted">
+                  {grams > 0 && `${grams} g · `}
+                  <span className="font-semibold text-accent">{kcal} kcal</span>
+                </div>
+              </div>
+            </button>
+          )
+        })}
+      </section>
+
+      <section className={`${card} px-4 py-3`}>
         <div className="flex items-center gap-2">
           <Footprints size={16} className="text-text-muted" />
           <span className="flex-1 text-sm text-text">
@@ -316,14 +388,14 @@ export function Nutrition() {
           </span>
           <button
             onClick={handlePasteSteps}
-            className="flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-xs text-text-muted transition-colors hover:text-text"
+            className="flex items-center gap-1 rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-text-muted transition-colors hover:text-text"
           >
             <ClipboardPaste size={13} />
             Pegar
           </button>
           <button
             onClick={() => setEditingSteps((v) => !v)}
-            className="rounded-lg border border-border px-2.5 py-1.5 text-xs text-text-muted transition-colors hover:text-text"
+            className="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-text-muted transition-colors hover:text-text"
           >
             Editar
           </button>
@@ -358,6 +430,7 @@ export function Nutrition() {
           initialAnalysis={sheet.analysis}
           initialPhoto={sheet.photo}
           initialNote={sheet.note}
+          initialMeal={sheet.meal}
           onClose={() => setSheet(null)}
         />
       )}

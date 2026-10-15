@@ -97,14 +97,50 @@ async function readErrorMessage(response: Response): Promise<string> {
   return detail ? `Error de Gemini: ${detail}` : `Error de Gemini (${response.status})`
 }
 
+const GENERATE_TIMEOUT_MS = 20_000
+// Fast, reliable fallback when the configured model is overloaded or too slow.
+const FALLBACK_MODEL = 'gemini-flash-lite-latest'
+
+class SlowModelError extends Error {}
+
 async function request(path: string, apiKey: string, init?: RequestInit): Promise<Response> {
   try {
     return await fetch(`${API_BASE}/${path}`, {
       ...init,
       headers: { 'x-goog-api-key': apiKey, 'Content-Type': 'application/json' },
     })
-  } catch {
+  } catch (err) {
+    if (init?.signal?.aborted) throw err
     throw new Error('Sin conexión. Revisa tu internet o añade la comida a mano.')
+  }
+}
+
+// One generation attempt, abandoned after GENERATE_TIMEOUT_MS or when the caller cancels.
+async function generate(
+  model: string,
+  apiKey: string,
+  body: Record<string, unknown>,
+  signal?: AbortSignal,
+): Promise<Response> {
+  const controller = new AbortController()
+  const onCancel = () => controller.abort()
+  signal?.addEventListener('abort', onCancel)
+  const timer = window.setTimeout(() => controller.abort(), GENERATE_TIMEOUT_MS)
+  try {
+    const response = await request(`models/${encodeURIComponent(model)}:generateContent`, apiKey, {
+      method: 'POST',
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    })
+    // Read the body inside the timeout too, so a stalled stream can't hang the caller.
+    return new Response(await response.text(), { status: response.status })
+  } catch (err) {
+    if (signal?.aborted) throw new DOMException('Cancelado', 'AbortError')
+    if (controller.signal.aborted) throw new SlowModelError('Gemini tarda demasiado ahora mismo. Inténtalo de nuevo.')
+    throw err
+  } finally {
+    window.clearTimeout(timer)
+    signal?.removeEventListener('abort', onCancel)
   }
 }
 
@@ -125,7 +161,12 @@ function toNumber(value: unknown): number {
   return Number.isFinite(n) && n > 0 ? Math.round(n) : 0
 }
 
-export async function analyzeFood(input: FoodInput, apiKey: string, model: string): Promise<FoodAnalysis> {
+export async function analyzeFood(
+  input: FoodInput,
+  apiKey: string,
+  model: string,
+  signal?: AbortSignal,
+): Promise<FoodAnalysis> {
   if (!apiKey) throw new Error('Falta la clave de Gemini. Añádela en Ajustes.')
 
   const parts: Array<Record<string, unknown>> = [{ text: buildPrompt(input) }]
@@ -135,20 +176,23 @@ export async function analyzeFood(input: FoodInput, apiKey: string, model: strin
     parts.push({ inlineData: { mimeType: media.type || fallbackType, data: await blobToBase64(media) } })
   }
 
-  const init: RequestInit = {
-    method: 'POST',
-    body: JSON.stringify({
-      contents: [{ role: 'user', parts }],
-      generationConfig: { responseMimeType: 'application/json', responseJsonSchema: FOOD_SCHEMA },
-      store: false,
-    }),
+  const body = {
+    contents: [{ role: 'user', parts }],
+    generationConfig: { responseMimeType: 'application/json', responseJsonSchema: FOOD_SCHEMA },
+    store: false,
   }
-  const path = `models/${encodeURIComponent(model)}:generateContent`
-  let response = await request(path, apiKey, init)
-  // "High demand" overloads are usually gone a moment later: retry once before showing an error.
-  if (response.status === 503) {
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-    response = await request(path, apiKey, init)
+  const fallbackBody = {
+    ...body,
+    generationConfig: { ...body.generationConfig, thinkingConfig: { thinkingLevel: 'minimal' } },
+  }
+
+  // An overloaded or slow model goes straight to the lite model instead of leaving the user waiting.
+  let response = await generate(model, apiKey, body, signal).catch((err) => {
+    if (err instanceof SlowModelError && model !== FALLBACK_MODEL) return null
+    throw err
+  })
+  if (!response || (model !== FALLBACK_MODEL && (response.status === 503 || response.status === 500))) {
+    response = await generate(FALLBACK_MODEL, apiKey, fallbackBody, signal)
   }
   if (!response.ok) throw new Error(await readErrorMessage(response))
 

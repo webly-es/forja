@@ -44,34 +44,53 @@ export function CalorieRing({ consumed, target }: CalorieRingProps) {
   const remaining = Math.round(target - consumed)
   const over = remaining < 0
   return (
-    <Ring value={consumed} target={target} size={184} stroke={12} over={over}>
-      <div className={`text-4xl font-semibold tracking-tight ${over ? 'text-danger' : 'text-text'}`}>
+    <Ring value={consumed} target={target} size={120} stroke={8} over={over}>
+      <div className={`text-2xl font-semibold tracking-tight ${over ? 'text-danger' : 'text-accent'}`}>
         {Math.abs(remaining).toLocaleString('es')}
       </div>
-      <div className="mt-0.5 text-xs uppercase tracking-wide text-text-muted">
-        {over ? 'kcal por encima' : 'kcal restantes'}
-      </div>
-      <div className="mt-1 text-[11px] text-text-muted">de {Math.round(target).toLocaleString('es')}</div>
+      <div className="text-[10px] uppercase tracking-wide text-text-muted">{over ? 'kcal de más' : 'kcal restantes'}</div>
+      <div className="mt-0.5 text-[10px] text-text-muted">de {Math.round(target).toLocaleString('es')}</div>
     </Ring>
   )
 }
 
-interface MacroRingProps {
+interface BarProps {
+  value: number
+  target: number
+  over?: boolean
+  muted?: boolean
+}
+
+// Thin horizontal progress bar, same colour rules as Ring.
+export function Bar({ value, target, over, muted }: BarProps) {
+  const pct = target > 0 ? Math.min(1, Math.max(0, value / target)) : 0
+  return (
+    <div className="h-1 overflow-hidden rounded-full bg-surface-2">
+      <div
+        className={`h-full rounded-full transition-[width] duration-700 ease-out ${
+          over ? 'bg-danger' : muted ? 'bg-text-muted/60' : 'bg-accent'
+        }`}
+        style={{ width: `${pct * 100}%` }}
+      />
+    </div>
+  )
+}
+
+interface MacroBarProps {
   label: string
   value: number
   target: number
 }
 
-export function MacroRing({ label, value, target }: MacroRingProps) {
+export function MacroBar({ label, value, target }: MacroBarProps) {
   return (
-    <div className="flex flex-col items-center gap-1.5">
-      <Ring value={value} target={target} size={58} stroke={5}>
-        <span className="text-sm font-semibold text-text">{Math.round(value)}</span>
-      </Ring>
-      <div className="text-center leading-tight">
-        <div className="text-[11px] uppercase tracking-wide text-text-muted">{label}</div>
-        <div className="text-[11px] text-text-muted">de {Math.round(target)} g</div>
+    <div className="min-w-0">
+      <div className="text-[10px] uppercase tracking-wide text-text-muted">{label}</div>
+      <div className="mb-1.5 mt-0.5 text-xs text-text">
+        <span className="font-semibold">{Math.round(value)}</span>
+        <span className="text-text-muted">/{Math.round(target)} g</span>
       </div>
+      <Bar value={value} target={target} />
     </div>
   )
 }

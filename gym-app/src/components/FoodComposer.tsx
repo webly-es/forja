@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowUp, Camera, Mic, Square } from 'lucide-react'
+import { ArrowUp, Camera, Mic, Square, X } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
 import { analyzeFood, type FoodAnalysis, type FoodInput } from '../lib/gemini'
 import { toWav16kMono } from '../lib/audio'
@@ -24,20 +24,28 @@ export function FoodComposer({ onAnalyzed }: FoodComposerProps) {
   const [text, setText] = useState('')
   const [analyzing, setAnalyzing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
   const recorder = useVoiceRecorder((audio) => void analyzeAudio(audio))
 
   async function run(input: () => Promise<FoodInput>, photo?: File) {
+    const controller = new AbortController()
+    abortRef.current = controller
     setAnalyzing(true)
     setError(null)
     try {
       const resolved = await input()
-      const analysis = await analyzeFood(resolved, geminiApiKey, geminiModel)
+      const analysis = await analyzeFood(resolved, geminiApiKey, geminiModel, controller.signal)
+      if (controller.signal.aborted) return
       setText('')
       onAnalyzed(analysis, photo, photo ? resolved.text : undefined)
     } catch (err) {
+      if (controller.signal.aborted) return
       setError(err instanceof Error ? err.message : 'No se pudo analizar.')
     } finally {
-      setAnalyzing(false)
+      if (abortRef.current === controller) {
+        abortRef.current = null
+        setAnalyzing(false)
+      }
     }
   }
 
@@ -57,6 +65,12 @@ export function FoodComposer({ onAnalyzed }: FoodComposerProps) {
     if (!file) return
     // Whatever is typed goes along as a note about the photo.
     void run(async () => ({ image: await resizeImageToBlob(file, 1024, 0.8), text }), file)
+  }
+
+  function cancelAnalysis() {
+    abortRef.current?.abort()
+    abortRef.current = null
+    setAnalyzing(false)
   }
 
   async function toggleRecording() {
@@ -91,8 +105,8 @@ export function FoodComposer({ onAnalyzed }: FoodComposerProps) {
   return (
     <div>
       <div
-        className={`relative flex items-center gap-1.5 overflow-hidden rounded-2xl border bg-surface py-1.5 pl-4 pr-1.5 transition-colors ${
-          recorder.recording ? 'border-accent' : 'border-border focus-within:border-accent-muted'
+        className={`relative flex items-center gap-1.5 overflow-hidden rounded-2xl border bg-gradient-to-r from-accent/[0.12] via-surface to-surface py-1.5 pl-4 pr-1.5 shadow-[0_0_24px_-10px_var(--color-accent)] transition-colors ${
+          recorder.recording ? 'border-accent' : 'border-accent-muted focus-within:border-accent/70'
         }`}
       >
         {analyzing && (
@@ -121,17 +135,22 @@ export function FoodComposer({ onAnalyzed }: FoodComposerProps) {
         )}
 
         {/* With text typed, the mic gives way to "send"; the camera stays so the text can go as a photo note. */}
-        {hasText ? null : (
+        {analyzing && (
+          <button onClick={cancelAnalysis} className={`${iconButton} text-text-muted hover:text-text`} aria-label="Cancelar">
+            <X size={18} />
+          </button>
+        )}
+        {hasText || analyzing ? null : (
           <button
             onClick={toggleRecording}
             disabled={analyzing}
-            className={`${iconButton} ${recorder.recording ? 'bg-accent text-bg' : 'text-text-muted hover:text-accent'}`}
+            className={`${iconButton} ${recorder.recording ? 'bg-accent text-bg' : 'text-accent hover:text-accent-hover'}`}
             aria-label={recorder.recording ? 'Parar y calcular' : 'Hablar'}
           >
             {recorder.recording ? <Square size={14} fill="currentColor" /> : <Mic size={19} />}
           </button>
         )}
-        {!recorder.recording && (
+        {!recorder.recording && !analyzing && (
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={analyzing}
