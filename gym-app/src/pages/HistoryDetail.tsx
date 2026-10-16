@@ -2,13 +2,18 @@ import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useNavigate, useParams } from 'react-router-dom'
 import { db } from '../db/db'
+import { deleteWorkoutSession, getRoutineSummaries, type RoutineSummary } from '../db/queries'
+import { coverUrl } from '../lib/routineCovers'
 import { EditSetChip } from '../components/EditSetChip'
 import { WorkoutReview } from '../components/WorkoutReview'
-import { ArrowLeft } from 'lucide-react'
+import { DetailHero, StatTiles } from '../components/DetailHero'
+import { DeleteWithConfirm } from '../components/DeleteWithConfirm'
 
-function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleDateString('es', { day: 'numeric', month: 'long', year: 'numeric' })
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 }
+
+const kg = (n: number) => n.toLocaleString('es', { maximumFractionDigits: 1 })
 
 export function HistoryDetail() {
   const { sessionId } = useParams()
@@ -35,34 +40,48 @@ export function HistoryDetail() {
       .filter((g) => g.exercise)
   }, [id])
 
+  const summaries = useLiveQuery(getRoutineSummaries, [], {} as Record<number, RoutineSummary>)
   const [editingSetId, setEditingSetId] = useState<number | null>(null)
 
   if (!session) return null
 
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center gap-3">
-        <button
-          onClick={() => navigate('/history')}
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-text-muted hover:text-text"
-          aria-label="Volver"
-        >
-          <ArrowLeft size={20} />
-        </button>
-        <div>
-          <h1 className="text-lg font-medium text-text">{session.routineName}</h1>
-          <p className="text-xs text-text-muted">
-            {formatDateTime(session.startedAt)}
-            {session.caloriesBurned != null && ` · ~${session.caloriesBurned} kcal`}
-          </p>
-        </div>
-      </div>
+  const allSets = grouped?.flatMap((g) => g.sets) ?? []
+  const minutes = session.finishedAt
+    ? Math.round((Date.parse(session.finishedAt) - Date.parse(session.startedAt)) / 60000)
+    : 0
+  const volume = allSets.reduce((sum, s) => sum + s.weightKg * s.reps, 0)
 
-      <div className="flex flex-col gap-3">
+  async function handleDelete() {
+    await deleteWorkoutSession(id)
+    navigate('/history')
+  }
+
+  return (
+    <div className="flex flex-col gap-5">
+      <DetailHero
+        title={session.routineName}
+        subtitle={formatDate(session.startedAt)}
+        image={coverUrl(summaries[session.routineId]?.cover ?? 'general')}
+        backTo="/history"
+      />
+
+      <StatTiles
+        items={[
+          { label: 'minutos', value: String(minutes) },
+          { label: 'kcal', value: session.caloriesBurned != null ? `~${session.caloriesBurned}` : '—' },
+          { label: 'series', value: String(allSets.length) },
+          { label: 'kg movidos', value: volume >= 1000 ? `${kg(volume / 1000)} t` : kg(volume) },
+        ]}
+      />
+
+      <div className="flex flex-col gap-2.5">
         {grouped?.map((g) => (
-          <div key={g.exercise!.id} className="rounded-xl border border-border bg-surface p-4">
-            <h3 className="font-medium text-text">{g.exercise!.name}</h3>
-            <div className="mt-2 flex flex-wrap gap-2">
+          <div key={g.exercise!.id} className="card-forged p-4">
+            <div className="flex items-baseline justify-between gap-2">
+              <h3 className="font-medium text-text">{g.exercise!.name}</h3>
+              <span className="shrink-0 text-xs text-text-muted">{g.exercise!.muscleGroup}</span>
+            </div>
+            <div className="mt-2.5 flex flex-wrap gap-2">
               {g.sets.map((s) =>
                 s.id === editingSetId ? (
                   <EditSetChip key={s.id} set={s} onDone={() => setEditingSetId(null)} />
@@ -71,9 +90,9 @@ export function HistoryDetail() {
                     key={s.id}
                     type="button"
                     onClick={() => setEditingSetId(s.id!)}
-                    className="rounded-md border border-border bg-surface-2 px-2 py-1 text-xs text-text-muted"
+                    className="rounded-md border border-accent-muted bg-accent-muted/30 px-2 py-1 text-xs tabular-nums text-text"
                   >
-                    {s.weightKg.toLocaleString('es')}kg × {s.reps}
+                    {kg(s.weightKg)} kg × {s.reps}
                   </button>
                 ),
               )}
@@ -83,10 +102,16 @@ export function HistoryDetail() {
       </div>
 
       {grouped && grouped.length > 0 && (
-        <section className="rounded-xl border border-border bg-surface p-4">
+        <section className="card-forged p-4">
           <WorkoutReview sessionId={session.id!} />
         </section>
       )}
+
+      <DeleteWithConfirm
+        label="Eliminar entrenamiento"
+        confirmMessage={`¿Eliminar "${session.routineName}" y todas sus series?`}
+        onConfirm={handleDelete}
+      />
     </div>
   )
 }

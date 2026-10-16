@@ -1,10 +1,13 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useNavigate, useParams } from 'react-router-dom'
 import { db } from '../db/db'
-import { ArrowLeft, HeartPulse } from 'lucide-react'
+import { deleteCardioSession } from '../db/queries'
+import { DetailHero, StatTiles } from '../components/DetailHero'
+import { DeleteWithConfirm } from '../components/DeleteWithConfirm'
+import { HeartPulse } from 'lucide-react'
 
-function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleDateString('es', { day: 'numeric', month: 'long', year: 'numeric' })
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 }
 
 export function CardioDetail() {
@@ -16,38 +19,41 @@ export function CardioDetail() {
 
   if (!session) return null
 
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center gap-3">
-        <button
-          onClick={() => navigate('/history')}
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-text-muted hover:text-text"
-          aria-label="Volver"
-        >
-          <ArrowLeft size={20} />
-        </button>
-        <div>
-          <h1 className="text-lg font-medium text-text">{session.activity}</h1>
-          <p className="text-xs text-text-muted">{formatDateTime(session.date)}</p>
-        </div>
-      </div>
+  async function handleDelete() {
+    await deleteCardioSession(id)
+    navigate('/history')
+  }
 
-      <div className="rounded-xl border border-border bg-surface p-4">
-        <div className="flex items-center gap-2 text-accent">
-          <HeartPulse size={18} />
-          <span className="text-sm text-text-muted">Cardio</span>
-        </div>
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <div>
-            <div className="text-xs uppercase tracking-wide text-text-muted">Duración</div>
-            <div className="mt-1 text-xl font-semibold text-text">{session.durationMinutes} min</div>
-          </div>
-          <div>
-            <div className="text-xs uppercase tracking-wide text-text-muted">Calorías</div>
-            <div className="mt-1 text-xl font-semibold text-text">~{session.caloriesBurned}</div>
-          </div>
-        </div>
-      </div>
+  return (
+    <div className="flex flex-col gap-5">
+      <DetailHero
+        title={session.activity}
+        subtitle={formatDate(session.date)}
+        backTo="/history"
+        icon={
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-accent-muted text-accent">
+            <HeartPulse size={22} />
+          </span>
+        }
+      />
+
+      <StatTiles
+        items={[
+          { label: 'minutos', value: String(session.durationMinutes) },
+          { label: 'kcal', value: `~${session.caloriesBurned}` },
+          { label: 'intensidad (MET)', value: session.met.toLocaleString('es', { maximumFractionDigits: 1 }) },
+        ]}
+      />
+
+      <p className="text-xs leading-relaxed text-text-muted">
+        Kcal estimadas con tu peso y la intensidad. En el balance diario solo cuenta lo que supera el gasto en reposo.
+      </p>
+
+      <DeleteWithConfirm
+        label="Eliminar actividad"
+        confirmMessage={`¿Eliminar "${session.activity}"?`}
+        onConfirm={handleDelete}
+      />
     </div>
   )
 }

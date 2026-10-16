@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { ensureExercisesSeeded } from './db/seed'
 import { ensureExercisePhotosSeeded } from './db/seedPhotos'
@@ -15,9 +15,11 @@ import { RoutineBuilder } from './pages/RoutineBuilder'
 import { History } from './pages/History'
 import { HistoryDetail } from './pages/HistoryDetail'
 import { CardioDetail } from './pages/CardioDetail'
-import { Progress } from './pages/Progress'
 import { Nutrition } from './pages/Nutrition'
 import { Settings } from './pages/Settings'
+
+// Progreso carries the charting library; load it only when that tab is opened.
+const Progress = lazy(() => import('./pages/Progress').then((m) => ({ default: m.Progress })))
 
 function App() {
   const [ready, setReady] = useState(false)
@@ -52,7 +54,14 @@ function App() {
             <Route path="/history/:sessionId" element={<HistoryDetail />} />
             <Route path="/history/cardio/:sessionId" element={<CardioDetail />} />
             <Route path="/food" element={<Nutrition />} />
-            <Route path="/progress" element={<Progress />} />
+            <Route
+              path="/progress"
+              element={
+                <Suspense fallback={null}>
+                  <Progress />
+                </Suspense>
+              }
+            />
             <Route path="/settings" element={<Settings />} />
           </Route>
         </Route>

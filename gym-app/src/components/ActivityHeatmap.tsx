@@ -32,7 +32,7 @@ export function ActivityHeatmap({ profileId }: { profileId: number }) {
   const selectedDay = selected ? days.get(selected) : undefined
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-4">
+    <div className="card-forged p-4">
       <div className="mb-3 flex items-baseline justify-between">
         <span className="text-sm text-text">
           <span className="font-display text-xl text-accent">{heatmap.activeDays}</span> días activos
