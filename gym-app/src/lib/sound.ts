@@ -35,3 +35,34 @@ export function vibrateRestEnd() {
     navigator.vibrate([200, 100, 200])
   }
 }
+
+// Short rising arpeggio for a new personal record (distinct from the rest-end beeps).
+// iPhone web apps can't vibrate, so the sound is what you notice there.
+export function playRecordChime() {
+  const ctx = getAudioCtx()
+  if (!ctx) return
+  if (ctx.state === 'suspended') void ctx.resume()
+
+  const now = ctx.currentTime
+  const notes = [784, 988, 1175, 1568] // G5 B5 D6 G6
+  notes.forEach((frequency, i) => {
+    const start = now + i * 0.09
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.type = 'sine'
+    osc.frequency.value = frequency
+    gain.gain.setValueAtTime(0.0001, start)
+    gain.gain.exponentialRampToValueAtTime(0.5, start + 0.02)
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + (i === notes.length - 1 ? 0.6 : 0.22))
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.start(start)
+    osc.stop(start + 0.65)
+  })
+}
+
+export function vibrateRecord() {
+  if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+    navigator.vibrate([60, 40, 60, 40, 180])
+  }
+}

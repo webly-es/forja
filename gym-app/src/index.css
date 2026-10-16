@@ -23,6 +23,19 @@
   --color-accent-hover: #dba852;
   --color-accent-muted: #4a3c22;
   --color-danger: #b34141;
+
+  --animate-record-in: record-in 420ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+
+  @keyframes record-in {
+    from {
+      opacity: 0;
+      transform: translateY(-16px) scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
 }
 
 html {

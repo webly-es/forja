@@ -47,6 +47,17 @@ export async function getLastSetForExercise(
   return setsInLatestSession[0]
 }
 
+// Every set to compare a new one against: finished sessions plus what's already
+// logged in the session in progress.
+export async function getPreviousSetsForExercise(
+  profileId: number,
+  exerciseId: number,
+  currentSessionId: number,
+): Promise<SetLog[]> {
+  const rawSets = await db.sets.where('exerciseId').equals(exerciseId).and((s) => s.profileId === profileId).toArray()
+  return filterSetsFromFinishedSessions(rawSets, currentSessionId)
+}
+
 // currentSessionId lets the live "best set" badge include the in-progress
 // session's own sets (so setting a new PR mid-workout updates it right
 // away) even though that session isn't finished yet.

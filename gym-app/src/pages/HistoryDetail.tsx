@@ -73,7 +73,7 @@ export function HistoryDetail() {
                     onClick={() => setEditingSetId(s.id!)}
                     className="rounded-md border border-border bg-surface-2 px-2 py-1 text-xs text-text-muted"
                   >
-                    {s.weightKg}kg × {s.reps}
+                    {s.weightKg.toLocaleString('es')}kg × {s.reps}
                   </button>
                 ),
               )}

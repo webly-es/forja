@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useNavigate, useParams } from 'react-router-dom'
 import { db } from '../db/db'
@@ -7,6 +7,8 @@ import { ExerciseCard } from '../components/ExerciseCard'
 import { RestTimer } from '../components/RestTimer'
 import { WorkoutFinishSummary } from '../components/WorkoutFinishSummary'
 import { WorkoutReview } from '../components/WorkoutReview'
+import { RecordToast } from '../components/RecordToast'
+import type { PersonalRecord } from '../lib/records'
 import { MET_STRENGTH_TRAINING, estimateCalories } from '../lib/calories'
 import { ArrowLeft, Check } from 'lucide-react'
 import type { Exercise } from '../types'
@@ -38,9 +40,13 @@ export function ActiveWorkout() {
     [session],
   )
 
-  function handleSetLogged() {
+  const [record, setRecord] = useState<{ key: number; exerciseName: string; record: PersonalRecord } | null>(null)
+  const closeRecord = useCallback(() => setRecord(null), [])
+
+  function handleSetLogged(exercise: Exercise, newRecord: PersonalRecord | null) {
     setRestKey((k) => k + 1)
     setRestVisible(true)
+    if (newRecord) setRecord({ key: Date.now(), exerciseName: exercise.name, record: newRecord })
   }
 
   async function handleFinish() {
@@ -86,10 +92,14 @@ export function ActiveWorkout() {
             exercise={ex}
             profileId={session.profileId}
             sessionId={id}
-            onSetLogged={handleSetLogged}
+            onSetLogged={(r) => handleSetLogged(ex, r)}
           />
         ))}
       </div>
+
+      {record && !finished && (
+        <RecordToast key={record.key} exerciseName={record.exerciseName} record={record.record} onClose={closeRecord} />
+      )}
 
       {restVisible && !finished && (
         <RestTimer

@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import { addSet, getBestSetForExercise, getLastSetForExercise } from '../db/queries'
+import { addSet, getBestSetForExercise, getLastSetForExercise, getPreviousSetsForExercise } from '../db/queries'
+import { detectRecord, type PersonalRecord } from '../lib/records'
 import { SetLogger } from './SetLogger'
 import { ExercisePhoto } from './ExercisePhoto'
 import { EditSetChip } from './EditSetChip'
@@ -14,7 +15,7 @@ interface ExerciseCardProps {
   exercise: Exercise
   profileId: number
   sessionId: number
-  onSetLogged: () => void
+  onSetLogged: (record: PersonalRecord | null) => void
 }
 
 export function ExerciseCard({ exercise, profileId, sessionId, onSetLogged }: ExerciseCardProps) {
@@ -53,8 +54,9 @@ export function ExerciseCard({ exercise, profileId, sessionId, onSetLogged }: Ex
   async function handleSaveSet(weightKg: number, reps: number) {
     setSaving(true)
     try {
+      const previous = await getPreviousSetsForExercise(profileId, exercise.id!, sessionId)
       await addSet({ sessionId, profileId, exerciseId: exercise.id!, weightKg, reps })
-      onSetLogged()
+      onSetLogged(detectRecord(weightKg, reps, previous))
     } finally {
       setSaving(false)
     }
@@ -73,7 +75,7 @@ export function ExerciseCard({ exercise, profileId, sessionId, onSetLogged }: Ex
         <div className="flex shrink-0 flex-col items-end gap-1">
           {lastSet && (
             <span className="rounded-full border border-border bg-surface-2 px-2.5 py-1 text-xs text-text-muted">
-              Última vez: {lastSet.weightKg}kg × {lastSet.reps}
+              Última vez: {lastSet.weightKg.toLocaleString('es')}kg × {lastSet.reps}
             </span>
           )}
           {target && (
@@ -89,7 +91,7 @@ export function ExerciseCard({ exercise, profileId, sessionId, onSetLogged }: Ex
           )}
           {bestSet && (
             <span className="rounded-full border border-accent-muted bg-accent-muted/40 px-2.5 py-1 text-xs text-accent">
-              Máximo: {bestSet.weightKg}kg × {bestSet.reps}
+              Máximo: {bestSet.weightKg.toLocaleString('es')}kg × {bestSet.reps}
             </span>
           )}
         </div>
@@ -119,7 +121,7 @@ export function ExerciseCard({ exercise, profileId, sessionId, onSetLogged }: Ex
                 onClick={() => setEditingSetId(s.id!)}
                 className="rounded-md border border-accent-muted bg-accent-muted/40 px-2 py-1 text-xs text-accent"
               >
-                Serie {s.setNumber}: {s.weightKg}kg × {s.reps}
+                Serie {s.setNumber}: {s.weightKg.toLocaleString('es')}kg × {s.reps}
               </button>
             ),
           )}
