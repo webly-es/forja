@@ -4,7 +4,7 @@ import { Home, Dumbbell, History, LineChart, Settings, Utensils } from 'lucide-r
 const TABS = [
   { to: '/home', label: 'Inicio', icon: Home },
   { to: '/workout/start', label: 'Entrenar', icon: Dumbbell },
-  { to: '/food', label: 'Comida', icon: Utensils },
+  { to: '/food', label: 'Nutrición', icon: Utensils },
   { to: '/history', label: 'Historial', icon: History },
   { to: '/progress', label: 'Progreso', icon: LineChart },
   { to: '/settings', label: 'Ajustes', icon: Settings },

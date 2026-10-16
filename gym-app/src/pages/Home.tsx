@@ -54,8 +54,9 @@ export function Home() {
   if (!profile) return null
 
   const bmi = getBMI(profile.weightKg, profile.heightCm)
-  const calories = Math.round(getTargetCalories(profile))
-  const macros = getMacros(profile)
+  // Today's target moves with steps and training; the profile estimate is only a fallback while loading.
+  const calories = Math.round(today?.target ?? getTargetCalories(profile))
+  const macros = today?.macros ?? getMacros(profile)
   const age = getAge(profile.birthDate)
 
   const lastCover = lastSession ? (summaries[lastSession.routineId]?.cover ?? 'general') : null
@@ -150,7 +151,7 @@ export function Home() {
         <h2 className="mb-3 text-xs uppercase tracking-wide text-text-muted">Tus métricas</h2>
         <div className="grid grid-cols-2 gap-3">
           <StatCard label="IMC" value={bmi.toFixed(1)} hint={getBMICategory(bmi)} />
-          <StatCard label="Calorías objetivo" value={`${calories}`} hint="kcal / día" />
+          <StatCard label="Objetivo hoy" value={`${calories}`} hint="kcal / día" />
           <StatCard label="Proteína" value={`${macros.proteinG} g`} />
           <StatCard label="Grasa" value={`${macros.fatG} g`} />
           <StatCard label="Carbohidratos" value={`${macros.carbsG} g`} />

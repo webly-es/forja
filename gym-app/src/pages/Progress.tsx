@@ -72,7 +72,7 @@ interface NutritionRow {
 
 function NutritionTable({ rows }: { rows: NutritionRow[] }) {
   if (rows.length === 0) {
-    return <p className="text-sm text-text-muted">Registra comidas en la pestaña Comida para ver tu balance aquí.</p>
+    return <p className="text-sm text-text-muted">Registra comidas en la pestaña Nutrición para ver tu balance aquí.</p>
   }
   const lastWeek = rows.filter((r) => r.date > shiftDateKey(todayKey(), -7))
   const avg = (values: number[]) => Math.round(values.reduce((a, b) => a + b, 0) / Math.max(1, values.length))

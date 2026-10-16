@@ -5,18 +5,25 @@ import type { CardioSession, Profile, WorkoutSession } from '../types'
 
 export interface DailyEnergy {
   bmr: number
+  tefKcal: number
   strengthKcal: number
   cardioKcal: number
   stepsKcal: number
   total: number
 }
 
-// Net cost of walking (BMR is counted separately): ~0.5 kcal per kg per km,
-// with stride length ≈ 0.415 × height.
-export function stepsToKcal(steps: number, weightKg: number, heightCm: number): number {
-  const distanceKm = (steps * heightCm * 0.415) / 100 / 1000
-  return distanceKm * weightKg * 0.5
+// Stride length ≈ 0.415 × height.
+export function stepsToKm(steps: number, heightCm: number): number {
+  return (steps * heightCm * 0.415) / 100 / 1000
 }
+
+// Net cost of walking (BMR is counted separately): ~0.5 kcal per kg per km.
+export function stepsToKcal(steps: number, weightKg: number, heightCm: number): number {
+  return stepsToKm(steps, heightCm) * weightKg * 0.5
+}
+
+// Thermic effect of food: digesting a normal diet costs ~10 % of BMR.
+const TEF_FACTOR = 0.1
 
 export function computeDailyEnergy(
   profile: Profile,
@@ -24,6 +31,7 @@ export function computeDailyEnergy(
   data: { sessions: WorkoutSession[]; cardio: CardioSession[]; steps: number },
 ): DailyEnergy {
   const bmr = getBMR(profile)
+  const tefKcal = bmr * TEF_FACTOR
 
   const strengthKcal = data.sessions
     .filter((s) => s.finishedAt && toDateKey(new Date(s.startedAt)) === dateKey)
@@ -43,9 +51,10 @@ export function computeDailyEnergy(
 
   return {
     bmr: Math.round(bmr),
+    tefKcal: Math.round(tefKcal),
     strengthKcal: Math.round(strengthKcal),
     cardioKcal: Math.round(cardioKcal),
     stepsKcal: Math.round(stepsKcal),
-    total: Math.round(bmr + strengthKcal + cardioKcal + stepsKcal),
+    total: Math.round(bmr + tefKcal + strengthKcal + cardioKcal + stepsKcal),
   }
 }

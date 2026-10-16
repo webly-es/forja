@@ -1,6 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { computeDailyEnergy, type DailyEnergy } from '../lib/dailyEnergy'
+import { getGoalOffset, getMacros, type Macros } from '../lib/metrics'
 import type { FoodEntry } from '../types'
 
 export interface DayBalance {
@@ -8,6 +9,9 @@ export interface DayBalance {
   steps: number
   consumed: { kcal: number; proteinG: number; carbsG: number; fatG: number }
   energy: DailyEnergy
+  // Calorie target for this day: what was actually spent (incl. steps and training) ± goal.
+  target: number
+  macros: Macros
 }
 
 // Everything the "Hoy" views need for one profile and one local day.
@@ -33,6 +37,8 @@ export function useDayBalance(profileId: number, dateKey: string): DayBalance | 
       { kcal: 0, proteinG: 0, carbsG: 0, fatG: 0 },
     )
     entries.sort((a, b) => a.loggedAt.localeCompare(b.loggedAt))
-    return { entries, steps, consumed, energy: computeDailyEnergy(profile, dateKey, { sessions, cardio, steps }) }
+    const energy = computeDailyEnergy(profile, dateKey, { sessions, cardio, steps })
+    const target = energy.total + getGoalOffset(profile.goal)
+    return { entries, steps, consumed, energy, target, macros: getMacros(profile, target) }
   }, [profileId, dateKey])
 }

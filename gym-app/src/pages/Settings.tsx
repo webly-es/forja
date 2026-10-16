@@ -33,6 +33,8 @@ export function Settings() {
   const geminiModel = useAppStore((s) => s.geminiModel)
   const setGeminiApiKey = useAppStore((s) => s.setGeminiApiKey)
   const setGeminiModel = useAppStore((s) => s.setGeminiModel)
+  const stepGoal = useAppStore((s) => s.stepGoal)
+  const setStepGoal = useAppStore((s) => s.setStepGoal)
   const [keyDraft, setKeyDraft] = useState(geminiApiKey)
   const [modelDraft, setModelDraft] = useState(geminiModel)
   const [keyStatus, setKeyStatus] = useState<string | null>(null)
@@ -316,6 +318,24 @@ export function Settings() {
       </section>
 
       <section>
+        <h2 className="mb-3 text-xs uppercase tracking-wide text-text-muted">Pasos</h2>
+        <label className="mb-3 flex items-center justify-between gap-4 rounded-xl border border-border bg-surface p-4">
+          <span className="text-sm text-text">Meta diaria de pasos</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={1000}
+            step={500}
+            defaultValue={stepGoal}
+            key={stepGoal}
+            onBlur={(e) => {
+              const value = Number(e.target.value)
+              if (value >= 1000) setStepGoal(value)
+              else e.target.value = String(stepGoal)
+            }}
+            className="input w-28 text-right"
+          />
+        </label>
         <button
           onClick={() => setShowShortcutHelp((v) => !v)}
           className="flex w-full items-center justify-between rounded-xl border border-border bg-surface p-4 text-left text-sm text-text transition-colors hover:border-accent"
@@ -339,7 +359,7 @@ export function Settings() {
                 Añade <span className="text-text">Redondear número</span> y después{' '}
                 <span className="text-text">Copiar al portapapeles</span>.
               </li>
-              <li>Ejecútalo (la primera vez pedirá permiso para leer Salud), abre Forja → Comida → "Pegar pasos".</li>
+              <li>Ejecútalo (la primera vez pedirá permiso para leer Salud), abre Forja → Nutrición → "Pegar de Salud".</li>
             </ol>
             <p className="mt-3">
               Opcional: en Atajos → Automatización, crea una automatización "Hora del día" (por ejemplo 22:00) que

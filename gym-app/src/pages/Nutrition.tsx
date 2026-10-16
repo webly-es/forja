@@ -1,16 +1,15 @@
 import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import { setDailySteps } from '../db/queries'
 import { useAppStore } from '../store/useAppStore'
 import { useDayBalance } from '../hooks/useDayBalance'
-import { getMacros, getTargetCalories } from '../lib/metrics'
 import { formatDateKey, shiftDateKey, todayKey } from '../lib/dates'
 import { MEAL_LABELS, MEAL_TYPES, mealForHour, type MealType } from '../lib/meals'
 import type { FoodAnalysis } from '../lib/gemini'
 import { FoodEntrySheet } from '../components/FoodEntrySheet'
 import { FoodComposer } from '../components/FoodComposer'
 import { Bar, CalorieRing, MacroBar } from '../components/CalorieRing'
+import { StepsCard } from '../components/StepsCard'
 import type { FoodEntry } from '../types'
 import {
   Apple,
@@ -18,9 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronUp,
-  ClipboardPaste,
   Coffee,
-  Footprints,
   Moon,
   PenLine,
   Plus,
@@ -86,9 +83,6 @@ export function Nutrition() {
   const [showRecent, setShowRecent] = useState(false)
   const [showSpend, setShowSpend] = useState(false)
   const [openMeal, setOpenMeal] = useState<MealType | null>(null)
-  const [editingSteps, setEditingSteps] = useState(false)
-  const [stepsDraft, setStepsDraft] = useState('')
-  const [stepsStatus, setStepsStatus] = useState<string | null>(null)
 
   const profile = useLiveQuery(() => db.profiles.get(activeProfileId), [activeProfileId])
   const day = useDayBalance(activeProfileId, dateKey)
@@ -115,36 +109,10 @@ export function Nutrition() {
   if (!profile || !day) return null
 
   const isToday = dateKey === todayKey()
-  const targetKcal = getTargetCalories(profile)
-  const macros = getMacros(profile)
+  const targetKcal = day.target
+  const macros = day.macros
   const balance = Math.round(day.consumed.kcal - day.energy.total)
   const barScale = Math.max(targetKcal, day.consumed.kcal, day.energy.total)
-
-  function flashStepsStatus(message: string) {
-    setStepsStatus(message)
-    setTimeout(() => setStepsStatus(null), 3000)
-  }
-
-  async function saveSteps(steps: number) {
-    await setDailySteps(activeProfileId, dateKey, steps)
-    setStepsDraft('')
-    setEditingSteps(false)
-    flashStepsStatus('Pasos guardados')
-  }
-
-  async function handlePasteSteps() {
-    try {
-      const text = await navigator.clipboard.readText()
-      const steps = Number(text.replace(/[^\d]/g, ''))
-      if (!steps) {
-        flashStepsStatus('No hay un número de pasos en el portapapeles')
-        return
-      }
-      await saveSteps(steps)
-    } catch {
-      flashStepsStatus('No se pudo leer el portapapeles. Escríbelos a mano.')
-    }
-  }
 
   async function repeatEntry(source: FoodEntry) {
     const { id: _id, ...rest } = source
@@ -164,7 +132,7 @@ export function Nutrition() {
   return (
     <div className="flex flex-col gap-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight text-text">Comida</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-text">Nutrición</h1>
         <div className="flex items-center rounded-full border border-white/10 bg-surface">
           <button
             onClick={() => setDateKey((d) => shiftDateKey(d, -1))}
@@ -217,10 +185,14 @@ export function Nutrition() {
         </div>
 
         {showSpend && (
-          <div className="mt-4 grid grid-cols-4 gap-1 rounded-xl bg-surface py-2.5 text-center text-[11px] text-text-muted">
+          <div className="mt-4 grid grid-cols-5 gap-1 rounded-xl bg-surface py-2.5 text-center text-[11px] text-text-muted">
             <div>
               <div className="text-sm text-text">{day.energy.bmr}</div>
-              En reposo
+              Reposo
+            </div>
+            <div>
+              <div className="text-sm text-text">{day.energy.tefKcal}</div>
+              Digestión
             </div>
             <div>
               <div className="text-sm text-text">{day.energy.strengthKcal}</div>
@@ -243,6 +215,14 @@ export function Nutrition() {
           <MacroBar label="Grasa" value={day.consumed.fatG} target={macros.fatG} />
         </div>
       </section>
+
+      <StepsCard
+        profile={profile}
+        dateKey={dateKey}
+        steps={day.steps}
+        stepsKcal={day.energy.stepsKcal}
+        onSelectDate={setDateKey}
+      />
 
       <section>
         <FoodComposer onAnalyzed={(analysis, photo, note) => setSheet({ mode: 'photo', analysis, photo, note })} />
@@ -378,47 +358,6 @@ export function Nutrition() {
             </button>
           )
         })}
-      </section>
-
-      <section className={`${card} px-4 py-3`}>
-        <div className="flex items-center gap-2">
-          <Footprints size={16} className="text-text-muted" />
-          <span className="flex-1 text-sm text-text">
-            {day.steps > 0 ? `${day.steps.toLocaleString('es')} pasos` : 'Sin pasos registrados'}
-          </span>
-          <button
-            onClick={handlePasteSteps}
-            className="flex items-center gap-1 rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-text-muted transition-colors hover:text-text"
-          >
-            <ClipboardPaste size={13} />
-            Pegar
-          </button>
-          <button
-            onClick={() => setEditingSteps((v) => !v)}
-            className="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-text-muted transition-colors hover:text-text"
-          >
-            Editar
-          </button>
-        </div>
-        {editingSteps && (
-          <div className="mt-3 flex gap-2">
-            <input
-              type="number"
-              inputMode="numeric"
-              placeholder="Escribir pasos"
-              value={stepsDraft}
-              onChange={(e) => setStepsDraft(e.target.value)}
-              className="input"
-            />
-            <button
-              onClick={() => Number(stepsDraft) >= 0 && stepsDraft !== '' && saveSteps(Math.round(Number(stepsDraft)))}
-              className="shrink-0 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-bg hover:bg-accent-hover"
-            >
-              Guardar
-            </button>
-          </div>
-        )}
-        {stepsStatus && <p className="mt-2 text-xs text-accent">{stepsStatus}</p>}
       </section>
 
       {sheet && (

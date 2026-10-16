@@ -57,12 +57,20 @@ export function getMaintenanceCalories(profile: Profile): number {
   return getBMR(profile) * ACTIVITY_FACTORS[profile.activityLevel]
 }
 
+const GOAL_OFFSETS: Record<Goal, number> = {
+  lose: -450,
+  maintain: 0,
+  gain: 300,
+  recomp: -150,
+}
+
+// Kcal to add to (or subtract from) a day's spend to hit the profile's goal.
+export function getGoalOffset(goal: Goal): number {
+  return GOAL_OFFSETS[goal]
+}
+
 export function getTargetCalories(profile: Profile): number {
-  const maintenance = getMaintenanceCalories(profile)
-  if (profile.goal === 'lose') return maintenance - 450
-  if (profile.goal === 'gain') return maintenance + 300
-  if (profile.goal === 'recomp') return maintenance - 150
-  return maintenance
+  return getMaintenanceCalories(profile) + getGoalOffset(profile.goal)
 }
 
 export interface Macros {
@@ -71,8 +79,9 @@ export interface Macros {
   carbsG: number
 }
 
-export function getMacros(profile: Profile): Macros {
-  const calories = getTargetCalories(profile)
+// Protein scales with body weight and fat with the calorie target; carbs absorb the rest,
+// so on a dynamic (activity-based) target it's mostly carbs that move.
+export function getMacros(profile: Profile, calories = getTargetCalories(profile)): Macros {
   const proteinPerKg = profile.goal === 'lose' || profile.goal === 'recomp' ? 2.2 : 1.9
   const proteinG = Math.round(profile.weightKg * proteinPerKg)
   const fatCalories = calories * 0.25
