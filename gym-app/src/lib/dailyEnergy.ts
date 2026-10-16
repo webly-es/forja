@@ -1,5 +1,6 @@
 import { getBMR } from './metrics'
 import { estimateStepsPerMinute } from './met'
+import { MET_STRENGTH_TRAINING, netOfRest } from './calories'
 import { toDateKey } from './dates'
 import type { CardioSession, Profile, WorkoutSession } from '../types'
 
@@ -35,10 +36,10 @@ export function computeDailyEnergy(
 
   const strengthKcal = data.sessions
     .filter((s) => s.finishedAt && toDateKey(new Date(s.startedAt)) === dateKey)
-    .reduce((sum, s) => sum + (s.caloriesBurned ?? 0), 0)
+    .reduce((sum, s) => sum + netOfRest(s.caloriesBurned ?? 0, MET_STRENGTH_TRAINING), 0)
 
   const dayCardio = data.cardio.filter((c) => toDateKey(new Date(c.date)) === dateKey)
-  const cardioKcal = dayCardio.reduce((sum, c) => sum + c.caloriesBurned, 0)
+  const cardioKcal = dayCardio.reduce((sum, c) => sum + netOfRest(c.caloriesBurned, c.met), 0)
 
   // Walking/running cardio already counts by MET — drop its steps from the
   // phone's daily total so those minutes aren't counted twice.

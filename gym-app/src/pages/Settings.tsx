@@ -6,7 +6,7 @@ import { useAppStore, DEFAULT_GEMINI_MODEL } from '../store/useAppStore'
 import { todayKey } from '../lib/dates'
 import { exportProfileData, importProfileData } from '../lib/exportImport'
 import { MEASUREMENT_TYPES, MEASUREMENT_LABELS } from '../lib/measurements'
-import { testGeminiKey } from '../lib/gemini'
+import { testGeminiKey } from '../lib/ai/geminiClient'
 import { Pencil, Download, Upload, Users, RefreshCw, ChevronDown } from 'lucide-react'
 
 const BUILD_TIME_LABEL = new Date(__APP_BUILD_TIME__).toLocaleString('es', {

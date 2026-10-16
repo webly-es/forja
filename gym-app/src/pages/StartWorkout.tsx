@@ -4,11 +4,9 @@ import { useNavigate } from 'react-router-dom'
 import { db } from '../db/db'
 import { getRoutineSummaries, type RoutineSummary } from '../db/queries'
 import { useAppStore } from '../store/useAppStore'
-import { estimateMet } from '../lib/met'
-import { estimateCalories } from '../lib/calories'
-import { WorkoutFinishSummary } from '../components/WorkoutFinishSummary'
+import { CardioPanel } from '../components/CardioPanel'
 import { coverUrl } from '../lib/routineCovers'
-import { HeartPulse, ListChecks, Plus, Pencil } from 'lucide-react'
+import { ListChecks, Plus, Pencil } from 'lucide-react'
 
 type Mode = 'strength' | 'cardio'
 
@@ -18,11 +16,6 @@ export function StartWorkout() {
   const navigate = useNavigate()
 
   const [mode, setMode] = useState<Mode>('strength')
-  const [activity, setActivity] = useState('')
-  const [minutes, setMinutes] = useState('')
-  const [finished, setFinished] = useState<{ sessionId: number; minutes: number; calories: number } | null>(
-    null,
-  )
 
   const profile = useLiveQuery(() => db.profiles.get(activeProfileId), [activeProfileId])
   const routines = useLiveQuery(() => db.routines.toArray(), [], [])
@@ -37,27 +30,6 @@ export function StartWorkout() {
     })) as number
     setActiveSessionId(sessionId)
     navigate(`/workout/active/${sessionId}`)
-  }
-
-  const canSaveCardio = activity.trim() !== '' && Number(minutes) > 0
-
-  async function saveCardio() {
-    if (!canSaveCardio || !profile) return
-    const durationMinutes = Number(minutes)
-    const met = estimateMet(activity)
-    const calories = estimateCalories(met, profile.weightKg, durationMinutes)
-    const sessionId = (await db.cardioSessions.add({
-      profileId: activeProfileId,
-      activity: activity.trim(),
-      durationMinutes,
-      met,
-      caloriesBurned: calories,
-      date: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-    })) as number
-    setActivity('')
-    setMinutes('')
-    setFinished({ sessionId, minutes: durationMinutes, calories })
   }
 
   return (
@@ -82,7 +54,7 @@ export function StartWorkout() {
             mode === 'cardio' ? 'bg-accent text-bg' : 'text-text-muted'
           }`}
         >
-          Cardio
+          Cardio y actividad
         </button>
       </div>
 
@@ -135,49 +107,7 @@ export function StartWorkout() {
           })}
         </div>
       ) : (
-        <div className="rounded-xl border border-border bg-surface p-4">
-          <div className="flex items-center gap-2 text-text-muted">
-            <HeartPulse size={18} />
-            <span className="text-sm">Actividad libre — escribe lo que hiciste</span>
-          </div>
-          <div className="mt-4 flex flex-col gap-3">
-            <input
-              type="text"
-              placeholder="Ej. piscina, correr, bicicleta..."
-              value={activity}
-              onChange={(e) => setActivity(e.target.value)}
-              className="input"
-            />
-            <input
-              type="number"
-              inputMode="numeric"
-              placeholder="Minutos"
-              value={minutes}
-              onChange={(e) => setMinutes(e.target.value)}
-              className="input"
-            />
-            <button
-              onClick={saveCardio}
-              disabled={!canSaveCardio}
-              className="rounded-lg bg-accent py-2.5 text-sm font-medium text-bg transition-all disabled:opacity-30 hover:bg-accent-hover active:enabled:scale-[0.97]"
-            >
-              Guardar
-            </button>
-          </div>
-        </div>
-      )}
-
-      {finished && (
-        <WorkoutFinishSummary
-          title="Cardio completado"
-          durationMinutes={finished.minutes}
-          calories={finished.calories}
-          onClose={() => {
-            setFinished(null)
-            navigate('/home')
-          }}
-          onViewDetail={() => navigate(`/history/cardio/${finished.sessionId}`)}
-        />
+        profile && <CardioPanel profile={profile} />
       )}
     </div>
   )

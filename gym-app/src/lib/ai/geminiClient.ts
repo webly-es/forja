@@ -1,73 +1,27 @@
-import type { FoodItem } from '../types'
+// Generic Gemini access: HTTP, timeouts, model fallback and error messages.
+// Feature-specific prompts and schemas live next to this file (food.ts, activity.ts).
 
 const API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
-export interface FoodAnalysis {
-  dishName: string
-  items: FoodItem[]
-}
+const GENERATE_TIMEOUT_MS = 20_000
+// Fast, reliable fallback when the configured model is overloaded or too slow.
+const FALLBACK_MODEL = 'gemini-flash-lite-latest'
 
-const FOOD_SCHEMA = {
-  type: 'object',
-  properties: {
-    dishName: { type: 'string', description: 'Nombre corto del plato en español' },
-    items: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          name: { type: 'string' },
-          grams: { type: 'number' },
-          kcal: { type: 'number' },
-          proteinG: { type: 'number' },
-          carbsG: { type: 'number' },
-          fatG: { type: 'number' },
-        },
-        required: ['name', 'grams', 'kcal', 'proteinG', 'carbsG', 'fatG'],
-      },
-    },
-  },
-  required: ['dishName', 'items'],
-}
+export type GeminiPart = { text: string } | { inlineData: { mimeType: string; data: string } }
 
-export interface FoodInput {
-  text?: string
-  image?: Blob
-  audio?: Blob
-}
+class SlowModelError extends Error {}
 
-function buildPrompt({ text, image, audio }: FoodInput): string {
-  const note = text?.trim() ?? ''
-  if (image) {
-    return [
-      'Eres un nutricionista. Analiza la foto de este plato de comida.',
-      'Identifica cada alimento visible y estima su peso en gramos, sus kcal, proteína, carbohidratos y grasa.',
-      'Ten en cuenta el aceite, mantequilla o salsas que se vean, aunque sea en pequeña cantidad.',
-      'Usa raciones realistas según el tamaño del plato y los cubiertos. Responde en español.',
-      'Si la foto no contiene comida, devuelve items vacío.',
-      note ? `Nota del usuario sobre el plato (úsala, es más fiable que la foto): ${note}` : '',
-    ]
-      .filter(Boolean)
-      .join('\n')
-  }
-  return [
-    'Eres un nutricionista. El usuario describe lo que ha comido' + (audio ? ' en este audio.' : ':'),
-    audio ? 'Escucha el audio con atención (puede tener ruido de fondo).' : `"${note}"`,
-    'Separa cada alimento y estima su peso en gramos, sus kcal, proteína, carbohidratos y grasa.',
-    'Interpreta cantidades y unidades (huevos, rebanadas, cucharadas, vasos, gramos).',
-    'Si nombra un producto de marca o de cadena de comida rápida (por ejemplo Whopper o Big Mac), usa sus valores nutricionales oficiales.',
-    'Si no indica cantidad, asume una ración normal. Responde en español.',
-    `Si ${audio ? 'el audio' : 'el texto'} no habla de comida o bebida, devuelve items vacío.`,
-  ].join('\n')
-}
-
-function blobToBase64(blob: Blob): Promise<string> {
+export function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => resolve(String(reader.result).split(',')[1] ?? '')
     reader.onerror = () => reject(new Error('No se pudo leer el archivo'))
     reader.readAsDataURL(blob)
   })
+}
+
+export async function mediaPart(blob: Blob, fallbackType: string): Promise<GeminiPart> {
+  return { inlineData: { mimeType: blob.type || fallbackType, data: await blobToBase64(blob) } }
 }
 
 async function readErrorMessage(response: Response): Promise<string> {
@@ -83,7 +37,7 @@ async function readErrorMessage(response: Response): Promise<string> {
     return 'Gemini está saturado ahora mismo. Inténtalo de nuevo en unos segundos.'
   }
   if (response.status === 429) {
-    return 'Has alcanzado el límite gratuito de Gemini por ahora. Espera un poco o añade la comida a mano.'
+    return 'Has alcanzado el límite gratuito de Gemini por ahora. Espera un poco o añádelo a mano.'
   }
   if (response.status === 400 && /api key/i.test(detail)) {
     return 'La clave de Gemini no es válida. Revísala en Ajustes.'
@@ -97,12 +51,6 @@ async function readErrorMessage(response: Response): Promise<string> {
   return detail ? `Error de Gemini: ${detail}` : `Error de Gemini (${response.status})`
 }
 
-const GENERATE_TIMEOUT_MS = 20_000
-// Fast, reliable fallback when the configured model is overloaded or too slow.
-const FALLBACK_MODEL = 'gemini-flash-lite-latest'
-
-class SlowModelError extends Error {}
-
 async function request(path: string, apiKey: string, init?: RequestInit): Promise<Response> {
   try {
     return await fetch(`${API_BASE}/${path}`, {
@@ -111,7 +59,7 @@ async function request(path: string, apiKey: string, init?: RequestInit): Promis
     })
   } catch (err) {
     if (init?.signal?.aborted) throw err
-    throw new Error('Sin conexión. Revisa tu internet o añade la comida a mano.')
+    throw new Error('Sin conexión. Revisa tu internet o añádelo a mano.')
   }
 }
 
@@ -156,31 +104,22 @@ function extractText(body: unknown): string {
     .join('')
 }
 
-function toNumber(value: unknown): number {
-  const n = Number(value)
-  return Number.isFinite(n) && n > 0 ? Math.round(n) : 0
-}
-
-export async function analyzeFood(
-  input: FoodInput,
+// Sends prompt + media and returns the model's JSON answer, shaped by `schema`.
+export async function generateJson<T>(
+  parts: GeminiPart[],
+  schema: Record<string, unknown>,
   apiKey: string,
   model: string,
   signal?: AbortSignal,
-): Promise<FoodAnalysis> {
+): Promise<T> {
   if (!apiKey) throw new Error('Falta la clave de Gemini. Añádela en Ajustes.')
-
-  const parts: Array<Record<string, unknown>> = [{ text: buildPrompt(input) }]
-  const media = input.image ?? input.audio
-  if (media) {
-    const fallbackType = input.image ? 'image/jpeg' : 'audio/wav'
-    parts.push({ inlineData: { mimeType: media.type || fallbackType, data: await blobToBase64(media) } })
-  }
 
   const body = {
     contents: [{ role: 'user', parts }],
-    generationConfig: { responseMimeType: 'application/json', responseJsonSchema: FOOD_SCHEMA },
+    generationConfig: { responseMimeType: 'application/json', responseJsonSchema: schema },
     store: false,
   }
+  // The lite model accepts (and is fastest with) minimal thinking; flash rejects it with 400.
   const fallbackBody = {
     ...body,
     generationConfig: { ...body.generationConfig, thinkingConfig: { thinkingLevel: 'minimal' } },
@@ -196,28 +135,16 @@ export async function analyzeFood(
   }
   if (!response.ok) throw new Error(await readErrorMessage(response))
 
-  const text = extractText(await response.json())
-  let parsed: { dishName?: string; items?: Array<Record<string, unknown>> }
   try {
-    parsed = JSON.parse(text)
+    return JSON.parse(extractText(await response.json())) as T
   } catch {
     throw new Error('Gemini no devolvió un resultado válido. Inténtalo otra vez.')
   }
+}
 
-  const items: FoodItem[] = (parsed.items ?? []).map((item) => ({
-    name: String(item.name ?? '').trim() || 'Alimento',
-    grams: toNumber(item.grams),
-    kcal: toNumber(item.kcal),
-    proteinG: toNumber(item.proteinG),
-    carbsG: toNumber(item.carbsG),
-    fatG: toNumber(item.fatG),
-  }))
-  if (items.length === 0) {
-    const where = input.image ? 'la foto' : input.audio ? 'el audio' : 'el texto'
-    throw new Error(`No se reconoció comida en ${where}.`)
-  }
-
-  return { dishName: String(parsed.dishName ?? '').trim() || items[0].name, items }
+export function toPositiveInt(value: unknown): number {
+  const n = Number(value)
+  return Number.isFinite(n) && n > 0 ? Math.round(n) : 0
 }
 
 // Checks the key and model without spending generation quota.

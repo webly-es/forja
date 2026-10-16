@@ -192,3 +192,37 @@ export async function getRoutineSummaries(): Promise<Record<number, RoutineSumma
   }
   return summaries
 }
+
+export interface NewCardioSession {
+  activity: string
+  durationMinutes: number
+  met: number
+  caloriesBurned: number
+}
+
+// Logs one cardio session per activity on the given local day (at the current time of day).
+export async function addCardioSessions(
+  profileId: number,
+  dateKey: string,
+  sessions: NewCardioSession[],
+): Promise<number[]> {
+  const now = new Date()
+  const [y, m, d] = dateKey.split('-').map(Number)
+  const date = new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds()).toISOString()
+  return db.transaction('rw', db.cardioSessions, () =>
+    Promise.all(
+      sessions.map(
+        (s) =>
+          db.cardioSessions.add({
+            profileId,
+            activity: s.activity.trim(),
+            durationMinutes: s.durationMinutes,
+            met: s.met,
+            caloriesBurned: s.caloriesBurned,
+            date,
+            createdAt: now.toISOString(),
+          }) as Promise<number>,
+      ),
+    ),
+  )
+}
