@@ -15,13 +15,14 @@ interface SettingsRowProps {
   icon: LucideIcon
   label: string
   detail?: ReactNode
+  value?: ReactNode
   onClick?: () => void
   disabled?: boolean
   iconClassName?: string
   trailing?: ReactNode
 }
 
-export function SettingsRow({ icon: Icon, label, detail, onClick, disabled, iconClassName = '', trailing }: SettingsRowProps) {
+export function SettingsRow({ icon: Icon, label, detail, value, onClick, disabled, iconClassName = '', trailing }: SettingsRowProps) {
   const content = (
     <>
       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-accent">
@@ -31,6 +32,7 @@ export function SettingsRow({ icon: Icon, label, detail, onClick, disabled, icon
         <span className="block text-sm text-text">{label}</span>
         {detail && <span className="mt-0.5 block text-xs text-text-muted">{detail}</span>}
       </span>
+      {value != null && <span className="shrink-0 text-sm tabular-nums text-accent">{value}</span>}
       {trailing ?? (onClick && <ChevronRight size={16} className="shrink-0 text-text-muted" />)}
     </>
   )
@@ -44,18 +46,16 @@ export function SettingsRow({ icon: Icon, label, detail, onClick, disabled, icon
   )
 }
 
-// Expandable help text inside a group.
-export function SettingsDisclosure({ icon, label, children }: { icon: LucideIcon; label: string; children: ReactNode }) {
+// Collapsible help text inside a settings sheet.
+export function SheetHelp({ label, children }: { label: string; children: ReactNode }) {
   const [open, setOpen] = useState(false)
   return (
-    <div>
-      <SettingsRow
-        icon={icon}
-        label={label}
-        onClick={() => setOpen((v) => !v)}
-        trailing={<ChevronDown size={16} className={`shrink-0 text-text-muted transition-transform ${open ? 'rotate-180' : ''}`} />}
-      />
-      {open && <div className="px-4 pb-4 pl-[60px] text-sm leading-relaxed text-text-muted">{children}</div>}
+    <div className="border-t border-white/[0.06] pt-3">
+      <button onClick={() => setOpen((v) => !v)} className="flex w-full items-center justify-between gap-3 text-left text-sm text-text">
+        {label}
+        <ChevronDown size={16} className={`shrink-0 text-text-muted transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && <div className="mt-2 text-sm leading-relaxed text-text-muted">{children}</div>}
     </div>
   )
 }

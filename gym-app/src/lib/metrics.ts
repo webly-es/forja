@@ -53,6 +53,14 @@ export const GOAL_LABELS: Record<Goal, string> = {
   recomp: 'Ganar músculo y perder grasa (recomposición)',
 }
 
+// For chips and subtitles where the full label doesn't fit.
+export const GOAL_SHORT_LABELS: Record<Goal, string> = {
+  lose: 'Perder grasa',
+  maintain: 'Mantener',
+  gain: 'Ganar músculo',
+  recomp: 'Recomposición',
+}
+
 export function getMaintenanceCalories(profile: Profile): number {
   return getBMR(profile) * ACTIVITY_FACTORS[profile.activityLevel]
 }
