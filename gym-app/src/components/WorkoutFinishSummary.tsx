@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Flame } from 'lucide-react'
 
 interface WorkoutFinishSummaryProps {
@@ -6,6 +7,8 @@ interface WorkoutFinishSummaryProps {
   calories: number
   onViewDetail: () => void
   onClose: () => void
+  // Extra content under the calories, e.g. the AI review.
+  children?: ReactNode
 }
 
 export function WorkoutFinishSummary({
@@ -14,10 +17,11 @@ export function WorkoutFinishSummary({
   calories,
   onViewDetail,
   onClose,
+  children,
 }: WorkoutFinishSummaryProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6">
-      <div className="w-full max-w-sm rounded-2xl border border-border bg-surface p-6 text-center">
+      <div className="max-h-[90dvh] w-full max-w-sm overflow-y-auto rounded-2xl border border-border bg-surface p-6 text-center">
         <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent-muted text-accent">
           <Flame size={22} />
         </span>
@@ -31,6 +35,8 @@ export function WorkoutFinishSummary({
         <p className="mt-2 text-xs text-text-muted">
           Estimado según tu peso y la intensidad, puede variar de la realidad.
         </p>
+
+        {children && <div className="mt-5 border-t border-border pt-5">{children}</div>}
 
         <div className="mt-6 flex gap-3">
           <button

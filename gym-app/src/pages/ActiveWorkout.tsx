@@ -6,6 +6,7 @@ import { useAppStore } from '../store/useAppStore'
 import { ExerciseCard } from '../components/ExerciseCard'
 import { RestTimer } from '../components/RestTimer'
 import { WorkoutFinishSummary } from '../components/WorkoutFinishSummary'
+import { WorkoutReview } from '../components/WorkoutReview'
 import { MET_STRENGTH_TRAINING, estimateCalories } from '../lib/calories'
 import { ArrowLeft, Check } from 'lucide-react'
 import type { Exercise } from '../types'
@@ -20,7 +21,7 @@ export function ActiveWorkout() {
 
   const [restKey, setRestKey] = useState(0)
   const [restVisible, setRestVisible] = useState(false)
-  const [finished, setFinished] = useState<{ minutes: number; calories: number } | null>(null)
+  const [finished, setFinished] = useState<{ minutes: number; calories: number; hasSets: boolean } | null>(null)
 
   const session = useLiveQuery(() => db.workoutSessions.get(id), [id])
   const profile = useLiveQuery(() => (session ? db.profiles.get(session.profileId) : undefined), [session])
@@ -52,7 +53,8 @@ export function ActiveWorkout() {
     const calories = estimateCalories(MET_STRENGTH_TRAINING, profile.weightKg, durationMinutes)
     await db.workoutSessions.update(id, { finishedAt, caloriesBurned: calories })
     setActiveSessionId(null)
-    setFinished({ minutes: durationMinutes, calories })
+    const hasSets = (await db.sets.where('sessionId').equals(id).count()) > 0
+    setFinished({ minutes: durationMinutes, calories, hasSets })
   }
 
   if (!session || !exercises) return null
@@ -89,7 +91,7 @@ export function ActiveWorkout() {
         ))}
       </div>
 
-      {restVisible && (
+      {restVisible && !finished && (
         <RestTimer
           key={restKey}
           initialSeconds={restDurationDefault}
@@ -106,7 +108,9 @@ export function ActiveWorkout() {
           calories={finished.calories}
           onClose={() => navigate('/home')}
           onViewDetail={() => navigate(`/history/${id}`)}
-        />
+        >
+          {finished.hasSets && <WorkoutReview sessionId={id} autoStart />}
+        </WorkoutFinishSummary>
       )}
     </div>
   )

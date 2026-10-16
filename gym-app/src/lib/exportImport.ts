@@ -14,6 +14,8 @@ interface BackupPayload {
   dailySteps?: unknown[]
   // Keyed by exerciseId, which only matches on a device with the same catalog.
   machineSettings?: unknown[]
+  exerciseTargets?: unknown[]
+  workoutReviews?: unknown[]
 }
 
 export async function exportProfileData(profileId: number) {
@@ -27,6 +29,8 @@ export async function exportProfileData(profileId: number) {
     foodEntries,
     dailySteps,
     machineSettings,
+    exerciseTargets,
+    workoutReviews,
   ] =
     await Promise.all([
       db.profiles.get(profileId),
@@ -38,6 +42,8 @@ export async function exportProfileData(profileId: number) {
       db.foodEntries.where('profileId').equals(profileId).toArray(),
       db.dailySteps.where('profileId').equals(profileId).toArray(),
       db.machineSettings.where('profileId').equals(profileId).toArray(),
+      db.exerciseTargets.where('profileId').equals(profileId).toArray(),
+      db.workoutReviews.where('profileId').equals(profileId).toArray(),
     ])
   if (!profile) throw new Error('Perfil no encontrado')
 
@@ -54,6 +60,8 @@ export async function exportProfileData(profileId: number) {
     foodEntries: foodEntries.map(({ photo: _photo, ...rest }) => rest),
     dailySteps,
     machineSettings,
+    exerciseTargets,
+    workoutReviews,
   }
 
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
@@ -87,6 +95,8 @@ export async function importProfileData(file: File): Promise<number> {
       db.foodEntries,
       db.dailySteps,
       db.machineSettings,
+      db.exerciseTargets,
+      db.workoutReviews,
     ],
     async () => {
       const { id: _oldId, ...profileData } = payload.profile
@@ -128,6 +138,21 @@ export async function importProfileData(file: File): Promise<number> {
           const { id: _oldId, ...rest } = row
           await table.add({ ...rest, profileId: newProfileId } as never)
         }
+      }
+
+      // AI reviews and targets point at sessions, whose ids change on import.
+      for (const review of (payload.workoutReviews ?? []) as Array<Record<string, unknown>>) {
+        const newSessionId = sessionIdMap.get(review.sessionId as number)
+        if (newSessionId == null) continue
+        await db.workoutReviews.put({ ...review, sessionId: newSessionId, profileId: newProfileId } as never)
+      }
+      for (const target of (payload.exerciseTargets ?? []) as Array<Record<string, unknown>>) {
+        const { id: _oldId, sessionId, ...rest } = target
+        await db.exerciseTargets.add({
+          ...rest,
+          sessionId: sessionIdMap.get(sessionId as number) ?? 0,
+          profileId: newProfileId,
+        } as never)
       }
 
       return newProfileId

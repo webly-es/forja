@@ -6,6 +6,8 @@ import { SetLogger } from './SetLogger'
 import { ExercisePhoto } from './ExercisePhoto'
 import { EditSetChip } from './EditSetChip'
 import { MachineSettings } from './MachineSettings'
+import { getExerciseTarget } from '../db/workoutReviews'
+import { Target } from 'lucide-react'
 import type { Exercise } from '../types'
 
 interface ExerciseCardProps {
@@ -36,13 +38,17 @@ export function ExerciseCard({ exercise, profileId, sessionId, onSetLogged }: Ex
     [profileId, exercise.id, sessionId],
   )
 
+  const target = useLiveQuery(() => getExerciseTarget(profileId, exercise.id!), [profileId, exercise.id])
+
   const [editingSetId, setEditingSetId] = useState<number | null>(null)
+  const [showTargetComment, setShowTargetComment] = useState(false)
   const [saving, setSaving] = useState(false)
 
   const sets = sessionSets ?? []
   const lastLoggedInSession = sets[sets.length - 1]
-  const defaultWeight = lastLoggedInSession?.weightKg ?? lastSet?.weightKg
-  const defaultReps = lastLoggedInSession?.reps ?? lastSet?.reps
+  // First set: the coach's target if there is one, else last time. Later sets: repeat the previous one.
+  const defaultWeight = lastLoggedInSession?.weightKg ?? target?.weightKg ?? lastSet?.weightKg
+  const defaultReps = lastLoggedInSession?.reps ?? target?.reps ?? lastSet?.reps
 
   async function handleSaveSet(weightKg: number, reps: number) {
     setSaving(true)
@@ -70,6 +76,17 @@ export function ExerciseCard({ exercise, profileId, sessionId, onSetLogged }: Ex
               Última vez: {lastSet.weightKg}kg × {lastSet.reps}
             </span>
           )}
+          {target && (
+            <button
+              type="button"
+              onClick={() => setShowTargetComment((v) => !v)}
+              className="flex items-center gap-1 rounded-full border border-accent bg-accent/15 px-2.5 py-1 text-xs font-medium text-accent"
+              aria-expanded={showTargetComment}
+            >
+              <Target size={12} />
+              Objetivo: {target.weightKg.toLocaleString('es')}kg × {target.reps}
+            </button>
+          )}
           {bestSet && (
             <span className="rounded-full border border-accent-muted bg-accent-muted/40 px-2.5 py-1 text-xs text-accent">
               Máximo: {bestSet.weightKg}kg × {bestSet.reps}
@@ -77,6 +94,12 @@ export function ExerciseCard({ exercise, profileId, sessionId, onSetLogged }: Ex
           )}
         </div>
       </div>
+
+      {target && showTargetComment && target.comment && (
+        <p className="mt-3 rounded-lg border border-accent-muted bg-accent-muted/20 px-3 py-2 text-xs leading-relaxed text-text-muted">
+          {target.comment}
+        </p>
+      )}
 
       <MachineSettings profileId={profileId} exerciseId={exercise.id!} />
 
@@ -105,6 +128,8 @@ export function ExerciseCard({ exercise, profileId, sessionId, onSetLogged }: Ex
 
       <div className="mt-3">
         <SetLogger
+          // Remount when the suggested values arrive or change, since SetLogger only reads them on mount.
+          key={`${sets.length}-${defaultWeight ?? ''}-${defaultReps ?? ''}`}
           setNumber={sets.length + 1}
           defaultWeight={defaultWeight}
           defaultReps={defaultReps}

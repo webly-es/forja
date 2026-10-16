@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useNavigate, useParams } from 'react-router-dom'
 import { db } from '../db/db'
 import { EditSetChip } from '../components/EditSetChip'
+import { WorkoutReview } from '../components/WorkoutReview'
 import { ArrowLeft } from 'lucide-react'
 
 function formatDateTime(iso: string) {
@@ -80,6 +81,12 @@ export function HistoryDetail() {
           </div>
         ))}
       </div>
+
+      {grouped && grouped.length > 0 && (
+        <section className="rounded-xl border border-border bg-surface p-4">
+          <WorkoutReview sessionId={session.id!} />
+        </section>
+      )}
     </div>
   )
 }

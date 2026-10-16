@@ -2,6 +2,7 @@ import { db } from './db'
 import type { MuscleGroup } from '../lib/muscleGroups'
 import { addSeedTombstone, isSeedTombstoned, tombstoneKeys } from './seedTombstones'
 import { moveMachineSettings } from './machineSettings'
+import { moveExerciseTargets } from './workoutReviews'
 
 interface SeedExercise {
   name: string
@@ -274,6 +275,7 @@ async function applyRename(from: string, to: string) {
   }
   await db.exercisePhotos.delete(source.id)
   await moveMachineSettings(source.id, targetId)
+  await moveExerciseTargets(source.id, targetId)
   await db.exercises.delete(source.id)
 }
 
@@ -292,7 +294,7 @@ const MUSCLE_GROUP_RENAME_MAP: { from: string; to: MuscleGroup }[] = [
 // already exists, so future additions to ROUTINES reach devices that
 // were already seeded.
 export async function ensureExercisesSeeded() {
-  const tables = [db.routines, db.exercises, db.routineExercises, db.seedTombstones, db.sets, db.exercisePhotos, db.machineSettings]
+  const tables = [db.routines, db.exercises, db.routineExercises, db.seedTombstones, db.sets, db.exercisePhotos, db.machineSettings, db.exerciseTargets]
   await db.transaction('rw', tables, async () => {
     for (const rename of RENAME_MAP) {
       await applyRename(rename.from, rename.to)

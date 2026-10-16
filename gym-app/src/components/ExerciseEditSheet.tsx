@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { Trash2 } from 'lucide-react'
 import { db } from '../db/db'
 import { deleteMachineSettingsForExercise } from '../db/machineSettings'
+import { deleteExerciseTargetsForExercise } from '../db/workoutReviews'
 import { addSeedTombstone, tombstoneKeys } from '../db/seedTombstones'
 import { resizeImageToBlob } from '../lib/image'
 import { MUSCLE_GROUPS, type MuscleGroup } from '../lib/muscleGroups'
@@ -56,12 +57,13 @@ export function ExerciseEditSheet({ exercise, onClose }: ExerciseEditSheetProps)
     if (!exercise?.id) return
     await db.transaction(
       'rw',
-      [db.exercises, db.routineExercises, db.exercisePhotos, db.machineSettings, db.sets, db.seedTombstones],
+      [db.exercises, db.routineExercises, db.exercisePhotos, db.machineSettings, db.exerciseTargets, db.sets, db.seedTombstones],
       async () => {
         await addSeedTombstone(tombstoneKeys.exercise(exercise.name))
         await db.routineExercises.where('exerciseId').equals(exercise.id!).delete()
         await db.exercisePhotos.delete(exercise.id!)
         await deleteMachineSettingsForExercise(exercise.id!)
+        await deleteExerciseTargetsForExercise(exercise.id!)
         await db.sets.where('exerciseId').equals(exercise.id!).delete()
         await db.exercises.delete(exercise.id!)
       },

@@ -144,3 +144,36 @@ export interface MachineSetting {
   note: string
   updatedAt: string
 }
+
+export type ExerciseTrend = 'up' | 'flat' | 'down' | 'new'
+
+export interface ExerciseAdvice {
+  exerciseId: number
+  exerciseName: string
+  trend: ExerciseTrend
+  comment: string
+  nextWeightKg: number
+  nextReps: number
+}
+
+// AI review of one finished strength session.
+export interface WorkoutReview {
+  sessionId: number
+  profileId: number
+  summary: string
+  highlights: string[]
+  exercises: ExerciseAdvice[]
+  createdAt: string
+}
+
+// Latest AI target per person and exercise, shown on the next workout.
+export interface ExerciseTarget {
+  id?: number
+  profileId: number
+  exerciseId: number
+  weightKg: number
+  reps: number
+  comment: string
+  sessionId: number
+  createdAt: string
+}

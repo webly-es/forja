@@ -106,8 +106,9 @@ export async function deleteSetAndRenumber(sessionId: number, exerciseId: number
 }
 
 export async function deleteWorkoutSession(sessionId: number) {
-  await db.transaction('rw', db.workoutSessions, db.sets, async () => {
+  await db.transaction('rw', db.workoutSessions, db.sets, db.workoutReviews, async () => {
     await db.sets.where('sessionId').equals(sessionId).delete()
+    await db.workoutReviews.delete(sessionId)
     await db.workoutSessions.delete(sessionId)
   })
 }
@@ -128,7 +129,7 @@ export async function deleteRoutine(routineId: number) {
 }
 
 // Deletes a profile and everything scoped to it (weight log, workout
-// sessions, sets, cardio sessions, food log, steps, machine settings). Exercises/routines/exercisePhotos are
+// sessions, sets, cardio sessions, food log, steps, machine settings, AI reviews and targets). Exercises/routines/exercisePhotos are
 // shared across profiles and are left untouched.
 export async function deleteProfile(profileId: number) {
   await db.transaction(
@@ -143,6 +144,8 @@ export async function deleteProfile(profileId: number) {
       db.foodEntries,
       db.dailySteps,
       db.machineSettings,
+      db.workoutReviews,
+      db.exerciseTargets,
     ],
     async () => {
       await db.bodyWeightLogs.where('profileId').equals(profileId).delete()
@@ -153,6 +156,8 @@ export async function deleteProfile(profileId: number) {
       await db.foodEntries.where('profileId').equals(profileId).delete()
       await db.dailySteps.where('profileId').equals(profileId).delete()
       await db.machineSettings.where('profileId').equals(profileId).delete()
+      await db.workoutReviews.where('profileId').equals(profileId).delete()
+      await db.exerciseTargets.where('profileId').equals(profileId).delete()
       await db.profiles.delete(profileId)
     },
   )
