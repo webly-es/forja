@@ -17,6 +17,7 @@ const SEED_PHOTOS: [exerciseName: string, file: string][] = [
   ['Press de banca con mancuernas', 'press-banca-mancuernas'],
   ['Cruce de poleas', 'cruce-poleas'],
   ['Fondos en paralelas', 'fondos-paralelas'],
+  ['Fondos en máquina (pectoral bajo)', 'fondos-paralelas'],
   ['Jalón al pecho, agarre ancho', 'jalon-agarre-ancho'],
   ['Jalón al pecho, agarre cerrado', 'jalon-agarre-cerrado'],
   ['Remo sentado en máquina', 'remo-sentado-maquina'],

@@ -195,6 +195,7 @@ const CATALOG: SeedExercise[] = [
   { name: 'Press de banca con mancuernas', muscleGroup: 'Pecho' },
   { name: 'Cruce de poleas', muscleGroup: 'Pecho' },
   { name: 'Fondos en paralelas', muscleGroup: 'Pecho' },
+  { name: 'Fondos en máquina (pectoral bajo)', muscleGroup: 'Pecho' },
   { name: 'Dominadas', muscleGroup: 'Espalda' },
   { name: 'Remo con barra', muscleGroup: 'Espalda' },
   { name: 'Remo con mancuerna a una mano', muscleGroup: 'Espalda' },
