@@ -1,8 +1,12 @@
 import { db } from './db'
 import { filterSetsFromFinishedSessions } from './queries'
+import { getBalanceSeries, getWeightSeries, type BalanceDay, type SeriesPoint } from './progress'
+import { shiftDateKey, todayKey } from '../lib/dates'
 import type { Exercise, ExerciseTarget, Profile, SetLog, WorkoutReview, WorkoutSession } from '../types'
 
 const PREVIOUS_SESSIONS = 4
+const RECENT_DAYS = 7
+const RECENT_WEIGHT_DAYS = 14
 
 export interface PastSession {
   date: string // ISO datetime of the session start
@@ -15,10 +19,29 @@ export interface ExerciseHistory {
   previous: PastSession[] // newest first
 }
 
+// Nutrition and body-weight context around the workout, so the coach can explain a bad day.
+export interface RecentContext {
+  balance: BalanceDay[] // full days only (today excluded), oldest first
+  weights: SeriesPoint[] // oldest first
+}
+
 export interface SessionHistory {
   session: WorkoutSession
   profile: Profile
   exercises: ExerciseHistory[]
+  recent: RecentContext
+}
+
+// Always the last week from today, also when an older session is re-analysed from History:
+// it is only context for the wording, the numbers that matter come from the sets.
+async function getRecentContext(profileId: number): Promise<RecentContext> {
+  const today = todayKey()
+  const weightSince = shiftDateKey(today, -RECENT_WEIGHT_DAYS)
+  const [balance, weights] = await Promise.all([getBalanceSeries(profileId, RECENT_DAYS + 1), getWeightSeries(profileId)])
+  return {
+    balance: balance.filter((d) => d.date < today),
+    weights: weights.filter((w) => w.date.slice(0, 10) > weightSince),
+  }
 }
 
 const bySetNumber = (a: SetLog, b: SetLog) => a.setNumber - b.setNumber
@@ -58,7 +81,7 @@ export async function getSessionHistory(sessionId: number): Promise<SessionHisto
       })),
     })
   }
-  return { session, profile, exercises: result }
+  return { session, profile, exercises: result, recent: await getRecentContext(session.profileId) }
 }
 
 export function getWorkoutReview(sessionId: number) {

@@ -1,5 +1,5 @@
 import type { SetLog } from '../types'
-import type { ExerciseHistory } from '../db/workoutReviews'
+import type { ExerciseHistory, RecentContext } from '../db/workoutReviews'
 
 // Epley estimate of the one-rep max, the usual way to compare sets with different reps.
 export function estimateOneRepMax(weightKg: number, reps: number): number {
@@ -33,7 +33,8 @@ function formatSets(sets: SetLog[]): string {
 }
 
 function shortDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('es', { day: 'numeric', month: 'short' })
+  // A bare yyyy-mm-dd would parse as UTC midnight; noon keeps it on the same local day.
+  return new Date(iso.length === 10 ? `${iso}T12:00` : iso).toLocaleDateString('es', { day: 'numeric', month: 'short' })
 }
 
 // One compact, model-friendly block per exercise, with the numbers already worked out.
@@ -56,6 +57,34 @@ export function describeExerciseHistory(history: ExerciseHistory): string {
         Math.max(...history.previous.map((p) => bestOneRepMax(p.sets))),
       )} kg`,
       `  Sesiones seguidas sin superar su mejor marca: ${sessionsWithoutImprovement(history)}`,
+    )
+  }
+  return lines.join('\n')
+}
+
+// Last week's eating and body weight in plain numbers; says so explicitly when nothing was logged.
+export function describeRecentContext({ balance, weights }: RecentContext): string {
+  const lines: string[] = []
+  if (balance.length === 0) {
+    lines.push('Sin comidas registradas en los últimos 7 días.')
+  } else {
+    const avgIn = Math.round(balance.reduce((sum, d) => sum + d.consumed, 0) / balance.length)
+    const avgOut = Math.round(balance.reduce((sum, d) => sum + d.spent, 0) / balance.length)
+    const diff = avgIn - avgOut
+    lines.push(
+      `Comida registrada ${balance.length} de los últimos 7 días: media de ${avgIn} kcal ingeridas frente a ${avgOut} kcal gastadas ` +
+        `(${diff >= 0 ? '+' : ''}${diff} kcal/día, ${diff < -100 ? 'en déficit' : diff > 100 ? 'en superávit' : 'en mantenimiento'}).`,
+    )
+  }
+  if (weights.length < 2) {
+    lines.push(weights.length === 1 ? `Peso registrado: ${kg(weights[0].value)} kg (un solo registro reciente).` : 'Sin registros de peso recientes.')
+  } else {
+    const first = weights[0]
+    const last = weights[weights.length - 1]
+    const change = last.value - first.value
+    lines.push(
+      `Peso: ${kg(first.value)} kg el ${shortDate(first.date)} y ${kg(last.value)} kg el ${shortDate(last.date)} ` +
+        `(${change >= 0 ? '+' : ''}${kg(change)} kg).`,
     )
   }
   return lines.join('\n')
