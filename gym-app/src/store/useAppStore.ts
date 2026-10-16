@@ -13,12 +13,14 @@ interface AppState {
   geminiApiKey: string
   geminiModel: string
   stepGoal: number
+  weeklyGoal: number // training days per week that keep the streak alive
   setActiveProfileId: (id: number | null) => void
   setActiveSessionId: (id: number | null) => void
   setRestDurationDefault: (seconds: number) => void
   setGeminiApiKey: (key: string) => void
   setGeminiModel: (model: string) => void
   setStepGoal: (steps: number) => void
+  setWeeklyGoal: (days: number) => void
 }
 
 export const useAppStore = create<AppState>()(
@@ -30,12 +32,14 @@ export const useAppStore = create<AppState>()(
       geminiApiKey: '',
       geminiModel: DEFAULT_GEMINI_MODEL,
       stepGoal: 10000,
+      weeklyGoal: 3,
       setActiveProfileId: (id) => set({ activeProfileId: id, activeSessionId: null }),
       setActiveSessionId: (id) => set({ activeSessionId: id }),
       setRestDurationDefault: (seconds) => set({ restDurationDefault: seconds }),
       setGeminiApiKey: (key) => set({ geminiApiKey: key.trim() }),
       setGeminiModel: (model) => set({ geminiModel: model.trim() || DEFAULT_GEMINI_MODEL }),
       setStepGoal: (steps) => set({ stepGoal: steps > 0 ? Math.round(steps) : 10000 }),
+      setWeeklyGoal: (days) => set({ weeklyGoal: Math.min(7, Math.max(1, Math.round(days))) }),
     }),
     { name: 'gym-app-store' },
   ),

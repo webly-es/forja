@@ -9,6 +9,7 @@ import { todayKey } from '../lib/dates'
 import { getRoutineSummaries, type RoutineSummary } from '../db/queries'
 import { coverUrl, HERO_IMAGE } from '../lib/routineCovers'
 import { CalorieRing } from '../components/CalorieRing'
+import { StreakCard } from '../components/StreakCard'
 import { ChevronRight, Dumbbell } from 'lucide-react'
 
 function formatRelativeDate(iso: string): string {
@@ -119,6 +120,8 @@ export function Home() {
           <div className="mt-0.5 text-xs text-accent">{formatRelativeDate(lastSession.startedAt)}</div>
         )}
       </div>
+
+      <StreakCard profileId={activeProfileId} />
 
       {today && (
         <button

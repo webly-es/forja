@@ -5,6 +5,7 @@ import { filterSetsFromFinishedSessions } from '../db/queries'
 import { useAppStore } from '../store/useAppStore'
 import { MEASUREMENT_TYPES, MEASUREMENT_LABELS, type MeasurementType } from '../lib/measurements'
 import { computeDailyEnergy } from '../lib/dailyEnergy'
+import { ActivityHeatmap } from '../components/ActivityHeatmap'
 import { formatDateKey, shiftDateKey, todayKey } from '../lib/dates'
 import type { Exercise } from '../types'
 
@@ -240,6 +241,11 @@ export function Progress() {
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-semibold tracking-tight text-text">Progreso</h1>
+
+      <section>
+        <h2 className="mb-3 text-xs uppercase tracking-wide text-text-muted">Constancia</h2>
+        <ActivityHeatmap profileId={activeProfileId} />
+      </section>
 
       <section>
         <h2 className="mb-3 text-xs uppercase tracking-wide text-text-muted">Nutrición (14 días)</h2>

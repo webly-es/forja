@@ -35,6 +35,8 @@ export function Settings() {
   const setGeminiModel = useAppStore((s) => s.setGeminiModel)
   const stepGoal = useAppStore((s) => s.stepGoal)
   const setStepGoal = useAppStore((s) => s.setStepGoal)
+  const weeklyGoal = useAppStore((s) => s.weeklyGoal)
+  const setWeeklyGoal = useAppStore((s) => s.setWeeklyGoal)
   const [keyDraft, setKeyDraft] = useState(geminiApiKey)
   const [modelDraft, setModelDraft] = useState(geminiModel)
   const [keyStatus, setKeyStatus] = useState<string | null>(null)
@@ -315,6 +317,30 @@ export function Settings() {
             </p>
           </div>
         )}
+      </section>
+
+      <section>
+        <h2 className="mb-3 text-xs uppercase tracking-wide text-text-muted">Entrenamiento</h2>
+        <div className="rounded-xl border border-border bg-surface p-4">
+          <div className="flex items-baseline justify-between">
+            <span className="text-sm text-text">Objetivo semanal</span>
+            <span className="text-xs text-text-muted">días con entreno o cardio</span>
+          </div>
+          <div className="mt-3 grid grid-cols-7 gap-1.5">
+            {[1, 2, 3, 4, 5, 6, 7].map((n) => (
+              <button
+                key={n}
+                onClick={() => setWeeklyGoal(n)}
+                className={`rounded-lg py-2 text-sm font-medium transition-colors ${
+                  weeklyGoal === n ? 'bg-accent text-bg' : 'bg-surface-2 text-text-muted hover:text-text'
+                }`}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-text-muted">Cada semana que lo cumples suma a tu racha.</p>
+        </div>
       </section>
 
       <section>
