@@ -12,10 +12,22 @@ interface BackupPayload {
   cardioSessions?: unknown[]
   foodEntries?: unknown[]
   dailySteps?: unknown[]
+  // Keyed by exerciseId, which only matches on a device with the same catalog.
+  machineSettings?: unknown[]
 }
 
 export async function exportProfileData(profileId: number) {
-  const [profile, bodyWeightLogs, bodyMeasurements, workoutSessions, sets, cardioSessions, foodEntries, dailySteps] =
+  const [
+    profile,
+    bodyWeightLogs,
+    bodyMeasurements,
+    workoutSessions,
+    sets,
+    cardioSessions,
+    foodEntries,
+    dailySteps,
+    machineSettings,
+  ] =
     await Promise.all([
       db.profiles.get(profileId),
       db.bodyWeightLogs.where('profileId').equals(profileId).toArray(),
@@ -25,6 +37,7 @@ export async function exportProfileData(profileId: number) {
       db.cardioSessions.where('profileId').equals(profileId).toArray(),
       db.foodEntries.where('profileId').equals(profileId).toArray(),
       db.dailySteps.where('profileId').equals(profileId).toArray(),
+      db.machineSettings.where('profileId').equals(profileId).toArray(),
     ])
   if (!profile) throw new Error('Perfil no encontrado')
 
@@ -40,6 +53,7 @@ export async function exportProfileData(profileId: number) {
     // Photo thumbnails are Blobs and don't survive JSON — data only.
     foodEntries: foodEntries.map(({ photo: _photo, ...rest }) => rest),
     dailySteps,
+    machineSettings,
   }
 
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
@@ -72,6 +86,7 @@ export async function importProfileData(file: File): Promise<number> {
       db.cardioSessions,
       db.foodEntries,
       db.dailySteps,
+      db.machineSettings,
     ],
     async () => {
       const { id: _oldId, ...profileData } = payload.profile
@@ -106,6 +121,7 @@ export async function importProfileData(file: File): Promise<number> {
         [db.cardioSessions, payload.cardioSessions],
         [db.foodEntries, payload.foodEntries],
         [db.dailySteps, payload.dailySteps],
+        [db.machineSettings, payload.machineSettings],
       ]
       for (const [table, rows] of profileRows) {
         for (const row of (rows ?? []) as Array<Record<string, unknown>>) {

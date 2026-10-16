@@ -5,6 +5,7 @@ import { addSet, getBestSetForExercise, getLastSetForExercise } from '../db/quer
 import { SetLogger } from './SetLogger'
 import { ExercisePhoto } from './ExercisePhoto'
 import { EditSetChip } from './EditSetChip'
+import { MachineSettings } from './MachineSettings'
 import type { Exercise } from '../types'
 
 interface ExerciseCardProps {
@@ -76,6 +77,8 @@ export function ExerciseCard({ exercise, profileId, sessionId, onSetLogged }: Ex
           )}
         </div>
       </div>
+
+      <MachineSettings profileId={profileId} exerciseId={exercise.id!} />
 
       {sets.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-2">

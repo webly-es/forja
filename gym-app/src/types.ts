@@ -132,3 +132,15 @@ export interface DailySteps {
   date: string // local yyyy-mm-dd
   steps: number
 }
+
+// Per-person machine setup for an exercise (seat/lever positions differ between profiles).
+// Free text because machines use numbers, letters or hole counts.
+export interface MachineSetting {
+  id?: number
+  profileId: number
+  exerciseId: number
+  seat: string
+  lever: string
+  note: string
+  updatedAt: string
+}
