@@ -36,7 +36,7 @@ export function computeDailyEnergy(
 
   const strengthKcal = data.sessions
     .filter((s) => s.finishedAt && toDateKey(new Date(s.startedAt)) === dateKey)
-    .reduce((sum, s) => sum + netOfRest(s.caloriesBurned ?? 0, MET_STRENGTH_TRAINING), 0)
+    .reduce((sum, s) => sum + netOfRest(s.caloriesBurned ?? 0, s.met ?? MET_STRENGTH_TRAINING), 0)
 
   const dayCardio = data.cardio.filter((c) => toDateKey(new Date(c.date)) === dateKey)
   const cardioKcal = dayCardio.reduce((sum, c) => sum + netOfRest(c.caloriesBurned, c.met), 0)

@@ -41,7 +41,7 @@ export interface SessionHistory {
   cycle?: CycleContext
 }
 
-async function getCycleContext(profile: Profile, day: string): Promise<CycleContext | undefined> {
+export async function getCycleContext(profile: Profile, day: string): Promise<CycleContext | undefined> {
   if (profile.sex !== 'F' || !profile.cycle || profile.cycle.method === 'off') return undefined
   const [logs, checkIn] = await Promise.all([getPeriodLogs(profile.id!), getCheckIn(profile.id!, day)])
   return { status: getCycleStatus(profile.cycle, logs, day), checkIn }
@@ -49,7 +49,7 @@ async function getCycleContext(profile: Profile, day: string): Promise<CycleCont
 
 // Always the last week from today, also when an older session is re-analysed from History:
 // it is only context for the wording, the numbers that matter come from the sets.
-async function getRecentContext(profileId: number): Promise<RecentContext> {
+export async function getRecentContext(profileId: number): Promise<RecentContext> {
   const today = todayKey()
   const weightSince = shiftDateKey(today, -RECENT_WEIGHT_DAYS)
   const [balance, weights] = await Promise.all([getBalanceSeries(profileId, RECENT_DAYS + 1), getWeightSeries(profileId)])

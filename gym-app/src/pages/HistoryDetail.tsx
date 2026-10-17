@@ -6,6 +6,7 @@ import { deleteWorkoutSession, getRoutineSummaries, type RoutineSummary } from '
 import { coverUrl } from '../lib/routineCovers'
 import { EditSetChip } from '../components/EditSetChip'
 import { WorkoutReview } from '../components/WorkoutReview'
+import { LadderReview } from '../components/ladder/LadderReview'
 import { DetailHero, StatTiles } from '../components/DetailHero'
 import { DeleteWithConfirm } from '../components/DeleteWithConfirm'
 
@@ -60,7 +61,11 @@ export function HistoryDetail() {
     <div className="flex flex-col gap-5">
       <DetailHero
         title={session.routineName}
-        subtitle={formatDate(session.startedAt)}
+        subtitle={
+          session.ladder
+            ? `${formatDate(session.startedAt)} · ${kg(session.ladder.dumbbellKg)} kg por mancuerna`
+            : formatDate(session.startedAt)
+        }
         image={coverUrl(summaries[session.routineId]?.cover ?? 'general')}
         backTo="/history"
       />
@@ -103,7 +108,7 @@ export function HistoryDetail() {
 
       {grouped && grouped.length > 0 && (
         <section className="card-forged p-4">
-          <WorkoutReview sessionId={session.id!} />
+          {session.ladder ? <LadderReview sessionId={session.id!} /> : <WorkoutReview sessionId={session.id!} />}
         </section>
       )}
 

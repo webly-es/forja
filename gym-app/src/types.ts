@@ -80,10 +80,14 @@ export interface Exercise {
   order: number
 }
 
+// 'ladder': guided dumbbell circuit with descending reps (see lib/ladder.ts).
+export type RoutineFormat = 'ladder'
+
 export interface Routine {
   id?: number
   key: string
   name: string
+  format?: RoutineFormat // undefined = normal routine
 }
 
 export interface RoutineExercise {
@@ -101,6 +105,16 @@ export interface WorkoutSession {
   startedAt: string // ISO datetime
   finishedAt?: string // ISO datetime
   caloriesBurned?: number
+  met?: number // undefined = MET_STRENGTH_TRAINING
+  ladder?: LadderSetup
+}
+
+// Settings of a ladder circuit session, chosen before starting.
+export interface LadderSetup {
+  dumbbellKg: number // per dumbbell
+  startReps: number
+  restSeconds: number
+  roundsDone: number
 }
 
 export interface SetLog {
@@ -202,6 +216,13 @@ export interface WorkoutReview {
   highlights: string[]
   exercises: ExerciseAdvice[]
   createdAt: string
+  ladder?: LadderAdvice // only on ladder circuit sessions
+}
+
+export interface LadderAdvice {
+  nextDumbbellKg: number
+  nextRestSeconds: number
+  comment: string
 }
 
 // Latest AI target per person and exercise, shown on the next workout.

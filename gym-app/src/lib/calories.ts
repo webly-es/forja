@@ -1,4 +1,6 @@
 export const MET_STRENGTH_TRAINING = 5.0
+// Vigorous circuit training with little rest (Compendium of Physical Activities).
+export const MET_CIRCUIT_TRAINING = 8.0
 
 // Compendium of Physical Activities formula
 export function estimateCalories(met: number, weightKg: number, durationMinutes: number): number {

@@ -1,5 +1,6 @@
 import { db } from './db'
 import type { MuscleGroup } from '../lib/muscleGroups'
+import type { RoutineFormat } from '../types'
 import { addSeedTombstone, isSeedTombstoned, tombstoneKeys } from './seedTombstones'
 import { moveMachineSettings } from './machineSettings'
 import { moveExerciseTargets } from './workoutReviews'
@@ -9,7 +10,7 @@ interface SeedExercise {
   muscleGroup: MuscleGroup
 }
 
-const ROUTINES: { key: string; name: string; exercises: SeedExercise[] }[] = [
+const ROUTINES: { key: string; name: string; format?: RoutineFormat; exercises: SeedExercise[] }[] = [
   {
     key: 'chest-tri-shoulders',
     name: 'Pecho - Tríceps - Hombros',
@@ -72,6 +73,18 @@ const ROUTINES: { key: string; name: string; exercises: SeedExercise[] }[] = [
       { name: 'Curl de bíceps con mancuernas', muscleGroup: 'Bíceps' },
       { name: 'Curl martillo con mancuernas', muscleGroup: 'Bíceps' },
       { name: 'Curl predicador en máquina', muscleGroup: 'Bíceps' },
+    ],
+  },
+  {
+    // Fat-loss dumbbell circuit for everyone, no fixed day: 6→1 reps per round, 1 min rest.
+    key: 'forja-ladder',
+    name: 'Escalera Forja',
+    format: 'ladder',
+    exercises: [
+      { name: 'Press de hombro de pie con mancuernas', muscleGroup: 'Hombro' },
+      { name: 'Sentadilla con mancuernas', muscleGroup: 'Cuádriceps' },
+      { name: 'Remo inclinado con mancuernas', muscleGroup: 'Espalda' },
+      { name: 'Peso muerto con mancuernas', muscleGroup: 'Femorales' },
     ],
   },
 ]
@@ -314,7 +327,10 @@ export async function ensureExercisesSeeded() {
       const existingRoutine = await db.routines.where('key').equals(routine.key).first()
       const routineId = existingRoutine
         ? existingRoutine.id!
-        : ((await db.routines.add({ key: routine.key, name: routine.name })) as number)
+        : ((await db.routines.add({ key: routine.key, name: routine.name, format: routine.format })) as number)
+      if (existingRoutine && routine.format && existingRoutine.format !== routine.format) {
+        await db.routines.update(routineId, { format: routine.format })
+      }
 
       const existingLinks = await db.routineExercises.where('routineId').equals(routineId).toArray()
       const linkedExerciseIds = new Set(existingLinks.map((l) => l.exerciseId))

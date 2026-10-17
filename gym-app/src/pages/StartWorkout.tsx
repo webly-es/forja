@@ -108,13 +108,15 @@ export function StartWorkout() {
                 />
                 <div className="absolute inset-0 -z-10 bg-gradient-to-r from-bg via-bg/60 to-transparent" />
                 <button
-                  onClick={() => startRoutine(r.id!, r.name)}
+                  onClick={() => (r.format === 'ladder' ? navigate(`/workout/ladder/${r.id}`) : startRoutine(r.id!, r.name))}
                   className="flex h-full w-full flex-col justify-end p-4 pr-14 text-left transition-transform active:scale-[0.98]"
                 >
                   <span className="font-display text-xl font-medium uppercase leading-tight tracking-wide text-text">
                     {r.name}
                   </span>
-                  <span className="mt-1 text-xs text-accent">{summary?.exerciseCount ?? 0} ejercicios</span>
+                  <span className="mt-1 text-xs text-accent">
+                    {r.format === 'ladder' ? 'Circuito 6 → 1 · quema grasa' : `${summary?.exerciseCount ?? 0} ejercicios`}
+                  </span>
                 </button>
                 <button
                   onClick={() => navigate(`/workout/routines/${r.id}/edit`)}

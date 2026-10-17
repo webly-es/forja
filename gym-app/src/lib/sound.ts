@@ -66,3 +66,10 @@ export function vibrateRecord() {
     navigator.vibrate([60, 40, 60, 40, 180])
   }
 }
+
+// iPhone only lets audio start from a tap: call this from the button that starts a
+// timed flow, so beeps fired later by a timer can play.
+export function unlockAudio() {
+  const ctx = getAudioCtx()
+  if (ctx && ctx.state === 'suspended') void ctx.resume()
+}

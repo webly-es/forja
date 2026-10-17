@@ -10,6 +10,7 @@ import { ProfileSetup } from './pages/ProfileSetup'
 import { Home } from './pages/Home'
 import { StartWorkout } from './pages/StartWorkout'
 import { ActiveWorkout } from './pages/ActiveWorkout'
+import { LadderWorkout } from './pages/LadderWorkout'
 import { Exercises } from './pages/Exercises'
 import { RoutineBuilder } from './pages/RoutineBuilder'
 import { History } from './pages/History'
@@ -42,6 +43,8 @@ function App() {
         <Route path="/setup" element={<ProfileSetup />} />
         <Route path="/setup/:id/edit" element={<ProfileSetup />} />
         <Route path="/workout/active/:sessionId" element={<ActiveWorkout />} />
+        <Route path="/workout/ladder/:routineId" element={<LadderWorkout />} />
+        <Route path="/workout/ladder/session/:sessionId" element={<LadderWorkout />} />
 
         <Route element={<RequireProfile />}>
           <Route element={<AppShell />}>
