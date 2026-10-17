@@ -10,6 +10,7 @@ import { getRoutineSummaries, type RoutineSummary } from '../db/queries'
 import { coverUrl, HERO_IMAGE } from '../lib/routineCovers'
 import { CalorieRing } from '../components/CalorieRing'
 import { StreakCard } from '../components/StreakCard'
+import { CycleCard } from '../components/cycle/CycleCard'
 import { ChevronRight, Dumbbell } from 'lucide-react'
 
 function formatRelativeDate(iso: string): string {
@@ -122,6 +123,8 @@ export function Home() {
       </div>
 
       <StreakCard profileId={activeProfileId} />
+
+      <CycleCard profileId={activeProfileId} />
 
       {today && (
         <button

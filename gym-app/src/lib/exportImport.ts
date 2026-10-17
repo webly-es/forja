@@ -16,6 +16,8 @@ interface BackupPayload {
   machineSettings?: unknown[]
   exerciseTargets?: unknown[]
   workoutReviews?: unknown[]
+  periodLogs?: unknown[]
+  cycleCheckIns?: unknown[]
 }
 
 export async function exportProfileData(profileId: number) {
@@ -31,6 +33,8 @@ export async function exportProfileData(profileId: number) {
     machineSettings,
     exerciseTargets,
     workoutReviews,
+    periodLogs,
+    cycleCheckIns,
   ] =
     await Promise.all([
       db.profiles.get(profileId),
@@ -44,6 +48,8 @@ export async function exportProfileData(profileId: number) {
       db.machineSettings.where('profileId').equals(profileId).toArray(),
       db.exerciseTargets.where('profileId').equals(profileId).toArray(),
       db.workoutReviews.where('profileId').equals(profileId).toArray(),
+      db.periodLogs.where('profileId').equals(profileId).toArray(),
+      db.cycleCheckIns.where('profileId').equals(profileId).toArray(),
     ])
   if (!profile) throw new Error('Perfil no encontrado')
 
@@ -62,6 +68,8 @@ export async function exportProfileData(profileId: number) {
     machineSettings,
     exerciseTargets,
     workoutReviews,
+    periodLogs,
+    cycleCheckIns,
   }
 
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
@@ -97,6 +105,8 @@ export async function importProfileData(file: File): Promise<number> {
       db.machineSettings,
       db.exerciseTargets,
       db.workoutReviews,
+      db.periodLogs,
+      db.cycleCheckIns,
     ],
     async () => {
       const { id: _oldId, ...profileData } = payload.profile
@@ -132,6 +142,8 @@ export async function importProfileData(file: File): Promise<number> {
         [db.foodEntries, payload.foodEntries],
         [db.dailySteps, payload.dailySteps],
         [db.machineSettings, payload.machineSettings],
+        [db.periodLogs, payload.periodLogs],
+        [db.cycleCheckIns, payload.cycleCheckIns],
       ]
       for (const [table, rows] of profileRows) {
         for (const row of (rows ?? []) as Array<Record<string, unknown>>) {

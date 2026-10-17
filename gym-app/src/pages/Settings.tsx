@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { db } from '../db/db'
 import { useAppStore } from '../store/useAppStore'
 import { GOAL_LABELS, getAge } from '../lib/metrics'
@@ -9,7 +9,9 @@ import { WeeklyGoalSheet } from '../components/settings/WeeklyGoalSheet'
 import { StepGoalSheet } from '../components/settings/StepGoalSheet'
 import { GeminiSheet } from '../components/settings/GeminiSheet'
 import { BackupSheet } from '../components/settings/BackupSheet'
-import { Pencil, Users, RefreshCw, KeyRound, Footprints, CalendarCheck, DatabaseBackup } from 'lucide-react'
+import { CycleSheet } from '../components/settings/CycleSheet'
+import { CYCLE_METHOD_LABELS } from '../lib/cycle'
+import { Pencil, Users, RefreshCw, KeyRound, Footprints, CalendarCheck, DatabaseBackup, Droplet } from 'lucide-react'
 
 const BUILD_TIME_LABEL = new Date(__APP_BUILD_TIME__).toLocaleString('es', {
   day: 'numeric',
@@ -19,7 +21,7 @@ const BUILD_TIME_LABEL = new Date(__APP_BUILD_TIME__).toLocaleString('es', {
   minute: '2-digit',
 })
 
-type Sheet = 'weekly' | 'steps' | 'gemini' | 'backup'
+type Sheet = 'weekly' | 'steps' | 'gemini' | 'backup' | 'cycle'
 
 export function Settings() {
   const activeProfileId = useAppStore((s) => s.activeProfileId)!
@@ -27,7 +29,9 @@ export function Settings() {
   const navigate = useNavigate()
 
   const profile = useLiveQuery(() => db.profiles.get(activeProfileId), [activeProfileId])
-  const [openSheet, setOpenSheet] = useState<Sheet | null>(null)
+  // Home's cycle card links straight to its sheet.
+  const [searchParams] = useSearchParams()
+  const [openSheet, setOpenSheet] = useState<Sheet | null>(searchParams.get('sheet') === 'cycle' ? 'cycle' : null)
   const [checkingUpdate, setCheckingUpdate] = useState(false)
 
   const geminiApiKey = useAppStore((s) => s.geminiApiKey)
@@ -108,6 +112,14 @@ export function Settings() {
           value={stepGoal.toLocaleString('es')}
           onClick={() => setOpenSheet('steps')}
         />
+        {profile.sex === 'F' && (
+          <SettingsRow
+            icon={Droplet}
+            label="Ciclo"
+            value={profile.cycle ? CYCLE_METHOD_LABELS[profile.cycle.method].label : <span className="text-text-muted">Sin configurar</span>}
+            onClick={() => setOpenSheet('cycle')}
+          />
+        )}
       </SettingsGroup>
 
       <SettingsGroup title="Inteligencia artificial">
@@ -142,6 +154,7 @@ export function Settings() {
       {openSheet === 'steps' && <StepGoalSheet onClose={closeSheet} />}
       {openSheet === 'gemini' && <GeminiSheet onClose={closeSheet} />}
       {openSheet === 'backup' && <BackupSheet profileId={activeProfileId} onClose={closeSheet} />}
+      {openSheet === 'cycle' && <CycleSheet profileId={activeProfileId} onClose={closeSheet} />}
     </div>
   )
 }

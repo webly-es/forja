@@ -1,8 +1,10 @@
 import { db } from './db'
 import { filterSetsFromFinishedSessions } from './queries'
 import { getBalanceSeries, getWeightSeries, type BalanceDay, type SeriesPoint } from './progress'
-import { shiftDateKey, todayKey } from '../lib/dates'
-import type { Exercise, ExerciseTarget, Profile, SetLog, WorkoutReview, WorkoutSession } from '../types'
+import { shiftDateKey, toDateKey, todayKey } from '../lib/dates'
+import { getCheckIn, getPeriodLogs } from './cycle'
+import { getCycleStatus, type CycleStatus } from '../lib/cycle'
+import type { CycleCheckIn, Exercise, ExerciseTarget, Profile, SetLog, WorkoutReview, WorkoutSession } from '../types'
 
 const PREVIOUS_SESSIONS = 4
 const RECENT_DAYS = 7
@@ -25,11 +27,24 @@ export interface RecentContext {
   weights: SeriesPoint[] // oldest first
 }
 
+// Cycle status and check-in on the day of the session (female profiles that track it).
+export interface CycleContext {
+  status: CycleStatus | null
+  checkIn?: CycleCheckIn
+}
+
 export interface SessionHistory {
   session: WorkoutSession
   profile: Profile
   exercises: ExerciseHistory[]
   recent: RecentContext
+  cycle?: CycleContext
+}
+
+async function getCycleContext(profile: Profile, day: string): Promise<CycleContext | undefined> {
+  if (profile.sex !== 'F' || !profile.cycle || profile.cycle.method === 'off') return undefined
+  const [logs, checkIn] = await Promise.all([getPeriodLogs(profile.id!), getCheckIn(profile.id!, day)])
+  return { status: getCycleStatus(profile.cycle, logs, day), checkIn }
 }
 
 // Always the last week from today, also when an older session is re-analysed from History:
@@ -81,7 +96,11 @@ export async function getSessionHistory(sessionId: number): Promise<SessionHisto
       })),
     })
   }
-  return { session, profile, exercises: result, recent: await getRecentContext(session.profileId) }
+  const [recent, cycle] = await Promise.all([
+    getRecentContext(session.profileId),
+    getCycleContext(profile, toDateKey(new Date(session.startedAt))),
+  ])
+  return { session, profile, exercises: result, recent, cycle }
 }
 
 export function getWorkoutReview(sessionId: number) {

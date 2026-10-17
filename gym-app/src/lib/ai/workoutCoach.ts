@@ -1,8 +1,9 @@
 import type { ExerciseAdvice, ExerciseTrend, Goal, WorkoutReview } from '../../types'
-import type { SessionHistory } from '../../db/workoutReviews'
+import type { CycleContext, SessionHistory } from '../../db/workoutReviews'
 import { GOAL_LABELS, getAge } from '../metrics'
 import { describeExerciseHistory, describeRecentContext } from '../workoutHistory'
 import { generateJson } from './geminiClient'
+import { NO_PERIOD_LABELS, PHASE_LABELS, describeCheckIn } from '../cycle'
 
 const REP_RANGES: Record<Goal, { min: number; max: number }> = {
   gain: { min: 6, max: 12 },
@@ -21,6 +22,38 @@ const GOAL_RULES: Record<Goal, string> = {
   lose:
     'Está en déficit para perder grasa: lo prioritario es conservar la fuerza con cargas pesadas. Mantener el rendimiento ya es un éxito; no bajes peso salvo caída clara.',
 }
+// Only facts about her day plus how to use them; no dates leave the device.
+// Evidence on performance by phase is individual, so the coach must not apply generic rules.
+export function describeCycleContext({ status, checkIn }: CycleContext): string[] {
+  const lines: string[] = []
+  if (status?.method === 'natural' && status.hasData) {
+    lines.push(
+      `Ciclo menstrual natural: día ${status.day} de un ciclo de unos ${status.cycleLength} días, ${PHASE_LABELS[status.phase].toLowerCase()}` +
+        `${status.lateLuteal ? ' (últimos días antes de la regla)' : ''}.`,
+      'Si rindió peor en la menstruación o en los días previos a la regla, no lo cuentes como estancamiento: mantén las cargas, no las bajes solo por eso, y explícalo con tacto. No apliques reglas generales del tipo "en tal fase eres más fuerte"; la respuesta a cada fase es individual.',
+    )
+  } else if (status?.method === 'combined' && status.hasData) {
+    lines.push(
+      status.inPause
+        ? 'Usa anticonceptivo hormonal combinado y está en la semana de descanso: puede notar algo más de cansancio, hinchazón o molestias.'
+        : 'Usa anticonceptivo hormonal combinado (toma activa): no tiene fases del ciclo natural, no hables de fases.',
+    )
+  } else if (status?.method === 'combined' || status?.method === 'progestin') {
+    lines.push('Usa anticonceptivo hormonal: no tiene fases del ciclo natural, no hables de fases.')
+    if (status.method === 'progestin' && status.bleeding) lines.push('Hoy tiene sangrado.')
+  } else if (status?.method === 'none') {
+    lines.push(`No tiene regla (${NO_PERIOD_LABELS[status.reason].toLowerCase()}): no hables de fases.`)
+    if (status.reason === 'pregnancy')
+      lines.push('Está embarazada: no propongas subir cargas por encima de lo de hoy y recuerda seguir las indicaciones de su profesional sanitario.')
+  }
+  if (checkIn) {
+    lines.push(`Cómo se sentía antes de entrenar: ${describeCheckIn(checkIn).toLowerCase()}.`)
+    lines.push('Si la energía era baja, había dolor fuerte o durmió mal, úsalo para explicar un peor rendimiento sin penalizarlo.')
+  }
+  if (lines.length > 0) lines.push('Menciona el ciclo o el chequeo solo si de verdad explica algo de la sesión.')
+  return lines
+}
+
 const TRENDS: ExerciseTrend[] = ['up', 'flat', 'down', 'new']
 
 const REVIEW_SCHEMA = {
@@ -46,8 +79,9 @@ const REVIEW_SCHEMA = {
   required: ['summary', 'highlights', 'exercises'],
 }
 
-function buildPrompt({ profile, session, exercises, recent }: SessionHistory): string {
+export function buildPrompt({ profile, session, exercises, recent, cycle }: SessionHistory): string {
   const range = REP_RANGES[profile.goal]
+  const cycleLines = cycle ? describeCycleContext(cycle) : []
   return [
     'Eres un entrenador personal de musculación. Analiza la sesión de hoy comparándola con las anteriores de cada ejercicio.',
     `Persona: ${profile.sex === 'M' ? 'hombre' : 'mujer'}, ${getAge(profile.birthDate)} años, ${profile.weightKg} kg. ` +
@@ -66,6 +100,7 @@ function buildPrompt({ profile, session, exercises, recent }: SessionHistory): s
     '',
     'Contexto de los últimos 7 días:',
     describeRecentContext(recent),
+    ...(cycleLines.length ? ['', 'Ciclo y estado del día:', ...cycleLines] : []),
     '',
     'Datos (peso×repeticiones por serie, de la más reciente a la más antigua):',
     ...exercises.map(describeExerciseHistory),

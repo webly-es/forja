@@ -16,6 +16,8 @@ import type {
   MachineSetting,
   WorkoutReview,
   ExerciseTarget,
+  PeriodLog,
+  CycleCheckIn,
 } from '../types'
 
 export const db = new Dexie('gym-app') as Dexie & {
@@ -35,6 +37,8 @@ export const db = new Dexie('gym-app') as Dexie & {
   machineSettings: EntityTable<MachineSetting, 'id'>
   workoutReviews: EntityTable<WorkoutReview, 'sessionId'>
   exerciseTargets: EntityTable<ExerciseTarget, 'id'>
+  periodLogs: EntityTable<PeriodLog, 'id'>
+  cycleCheckIns: EntityTable<CycleCheckIn, 'id'>
 }
 
 db.version(1).stores({
@@ -169,4 +173,25 @@ db.version(8).stores({
   machineSettings: '++id, &[profileId+exerciseId], profileId, exerciseId',
   workoutReviews: 'sessionId, profileId',
   exerciseTargets: '++id, &[profileId+exerciseId], profileId, exerciseId',
+})
+
+db.version(9).stores({
+  profiles: '++id, name',
+  bodyWeightLogs: '++id, profileId, date',
+  bodyMeasurements: '++id, profileId, date, type',
+  exercises: '++id, name, muscleGroup, order',
+  routines: '++id, key',
+  routineExercises: '++id, routineId, exerciseId, order',
+  workoutSessions: '++id, profileId, routineId, startedAt',
+  sets: '++id, sessionId, profileId, exerciseId, completedAt',
+  cardioSessions: '++id, profileId, date',
+  exercisePhotos: 'exerciseId',
+  seedTombstones: 'key',
+  foodEntries: '++id, profileId, date',
+  dailySteps: '++id, profileId, date',
+  machineSettings: '++id, &[profileId+exerciseId], profileId, exerciseId',
+  workoutReviews: 'sessionId, profileId',
+  exerciseTargets: '++id, &[profileId+exerciseId], profileId, exerciseId',
+  periodLogs: '++id, profileId, startDate',
+  cycleCheckIns: '++id, &[profileId+date], profileId',
 })

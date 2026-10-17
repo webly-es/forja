@@ -2,6 +2,9 @@ import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Plus } from 'lucide-react'
 import { getWeightSeries, logWeight } from '../../db/progress'
+import { getProfileCycleStatus } from '../../db/cycle'
+import { expectsWaterRetention } from '../../lib/cycle'
+import { todayKey } from '../../lib/dates'
 import type { Goal } from '../../types'
 import { TrendChart } from '../charts/TrendChart'
 import { EmptyHint, HeadlineValue, ProgressSection, RecordsDisclosure, shortDate } from './shared'
@@ -18,6 +21,7 @@ export function BodyWeightSection({
   goal: Goal
 }) {
   const points = useLiveQuery(() => getWeightSeries(profileId), [profileId])
+  const retention = useLiveQuery(async () => expectsWaterRetention(await getProfileCycleStatus(profileId, todayKey())), [profileId])
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
 
@@ -73,6 +77,11 @@ export function BodyWeightSection({
       ) : (
         <>
           <HeadlineValue points={points} unit="kg" better={WEIGHT_PROGRESS[goal]} />
+          {retention && (
+            <p className="mt-2 text-xs text-text-muted">
+              Por tu ciclo, estos días es normal retener líquidos: una subida de 0,5 a 2 kg suele ser agua y se va en pocos días.
+            </p>
+          )}
           {points.length > 1 && (
             <div className="mt-3">
               <TrendChart points={points.map((p) => ({ label: shortDate(p.date), value: p.value }))} unit="kg" />

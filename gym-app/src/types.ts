@@ -8,6 +8,22 @@ export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'ver
 
 export type Goal = 'lose' | 'maintain' | 'gain' | 'recomp'
 
+// How the cycle is tracked depends on contraception: only a natural cycle has phases.
+// natural: no hormonal method (copper IUD included) · combined: pill, ring or patch with a pause
+// progestin: mini-pill, hormonal IUD, implant, injection · none: no period · off: not tracked
+export type CycleMethod = 'natural' | 'combined' | 'progestin' | 'none' | 'off'
+
+export type PillPattern = '21-7' | '24-4' | 'continuous'
+
+export type NoPeriodReason = 'menopause' | 'pregnancy' | 'breastfeeding' | 'other'
+
+export interface CycleSettings {
+  method: CycleMethod
+  pillPattern?: PillPattern
+  packStartDate?: string // local yyyy-mm-dd, first active pill of the current pack
+  noPeriodReason?: NoPeriodReason
+}
+
 export interface Profile {
   id?: number
   name: string
@@ -18,6 +34,28 @@ export interface Profile {
   activityLevel: ActivityLevel
   goal: Goal
   createdAt: string
+  cycle?: CycleSettings // female profiles only
+}
+
+// A period (natural cycle) or a bleed (hormonal methods). endDate stays empty while it lasts.
+export interface PeriodLog {
+  id?: number
+  profileId: number
+  startDate: string // local yyyy-mm-dd
+  endDate?: string // local yyyy-mm-dd, inclusive
+}
+
+export type CheckInPain = 'none' | 'mild' | 'strong'
+export type CheckInSleep = 'good' | 'ok' | 'bad'
+
+// Optional "how do you feel today" before training, one per day.
+export interface CycleCheckIn {
+  id?: number
+  profileId: number
+  date: string // local yyyy-mm-dd
+  energy: number // 1-5
+  pain: CheckInPain
+  sleep: CheckInSleep
 }
 
 export interface BodyWeightLog {

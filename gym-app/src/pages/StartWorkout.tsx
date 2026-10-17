@@ -5,8 +5,11 @@ import { db } from '../db/db'
 import { getRoutineSummaries, type RoutineSummary } from '../db/queries'
 import { useAppStore } from '../store/useAppStore'
 import { CardioPanel } from '../components/CardioPanel'
+import { CheckInSheet } from '../components/cycle/CheckInSheet'
+import { getCheckIn } from '../db/cycle'
+import { todayKey } from '../lib/dates'
 import { coverUrl } from '../lib/routineCovers'
-import { ListChecks, Plus, Pencil } from 'lucide-react'
+import { HeartPulse, ListChecks, Plus, Pencil } from 'lucide-react'
 
 type Mode = 'strength' | 'cardio'
 
@@ -16,10 +19,15 @@ export function StartWorkout() {
   const navigate = useNavigate()
 
   const [mode, setMode] = useState<Mode>('strength')
+  const [checkInOpen, setCheckInOpen] = useState(false)
+  const today = todayKey()
 
   const profile = useLiveQuery(() => db.profiles.get(activeProfileId), [activeProfileId])
   const routines = useLiveQuery(() => db.routines.toArray(), [], [])
   const summaries = useLiveQuery(getRoutineSummaries, [], {} as Record<number, RoutineSummary>)
+  // null while loading, so the prompt doesn't flash in when today's check-in exists.
+  const checkIn = useLiveQuery(async () => (await getCheckIn(activeProfileId, today)) ?? false, [activeProfileId, today], null)
+  const tracksCycle = profile?.sex === 'F' && profile.cycle != null && profile.cycle.method !== 'off'
 
   async function startRoutine(routineId: number, routineName: string) {
     const sessionId = (await db.workoutSessions.add({
@@ -57,6 +65,19 @@ export function StartWorkout() {
           Cardio y actividad
         </button>
       </div>
+
+      {tracksCycle && checkIn === false && (
+        <button
+          onClick={() => setCheckInOpen(true)}
+          className="card-forged flex items-center gap-3 p-4 text-left transition-colors hover:border-accent-muted"
+        >
+          <HeartPulse size={18} className="shrink-0 text-accent" />
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm text-text">¿Cómo llegas hoy?</span>
+            <span className="block text-xs text-text-muted">Energía, dolor y sueño en tres toques. Opcional.</span>
+          </span>
+        </button>
+      )}
 
       {mode === 'strength' ? (
         <div className="flex flex-col gap-3">
@@ -109,6 +130,8 @@ export function StartWorkout() {
       ) : (
         profile && <CardioPanel profile={profile} />
       )}
+
+      {checkInOpen && <CheckInSheet profileId={activeProfileId} date={today} onClose={() => setCheckInOpen(false)} />}
     </div>
   )
 }
