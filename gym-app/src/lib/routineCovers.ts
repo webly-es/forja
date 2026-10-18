@@ -1,6 +1,6 @@
 import type { MuscleGroup } from './muscleGroups'
 
-export type RoutineCover = 'pecho' | 'espalda' | 'pierna' | 'brazos' | 'gluteos' | 'general'
+export type RoutineCover = 'pecho' | 'espalda' | 'pierna' | 'brazos' | 'gluteos' | 'general' | 'escalera'
 
 const COVER_FOR_GROUP: Record<MuscleGroup, RoutineCover> = {
   Pecho: 'pecho',

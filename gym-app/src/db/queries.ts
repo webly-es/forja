@@ -198,8 +198,14 @@ export interface RoutineSummary {
 
 // Exercise count and cover image for every routine, keyed by routine id.
 export async function getRoutineSummaries(): Promise<Record<number, RoutineSummary>> {
-  const [links, exercises] = await Promise.all([db.routineExercises.toArray(), db.exercises.toArray()])
+  const [links, exercises, routines] = await Promise.all([
+    db.routineExercises.toArray(),
+    db.exercises.toArray(),
+    db.routines.toArray(),
+  ])
   const groupById = new Map(exercises.map((e) => [e.id!, e.muscleGroup]))
+  // Circuits have their own cover instead of the one of their dominant muscle.
+  const ladderIds = new Set(routines.filter((r) => r.format === 'ladder').map((r) => r.id!))
   const groupsByRoutine = new Map<number, MuscleGroup[]>()
   for (const link of links) {
     const group = groupById.get(link.exerciseId)
@@ -209,7 +215,10 @@ export async function getRoutineSummaries(): Promise<Record<number, RoutineSumma
   }
   const summaries: Record<number, RoutineSummary> = {}
   for (const link of links) {
-    summaries[link.routineId] ??= { exerciseCount: 0, cover: coverForGroups(groupsByRoutine.get(link.routineId) ?? []) }
+    summaries[link.routineId] ??= {
+      exerciseCount: 0,
+      cover: ladderIds.has(link.routineId) ? 'escalera' : coverForGroups(groupsByRoutine.get(link.routineId) ?? []),
+    }
     summaries[link.routineId].exerciseCount++
   }
   return summaries
