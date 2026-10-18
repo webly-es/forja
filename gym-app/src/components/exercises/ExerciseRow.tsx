@@ -1,6 +1,6 @@
 import { ChevronRight } from 'lucide-react'
 import { ExercisePhoto } from '../ExercisePhoto'
-import { equipmentOf } from '../../lib/exercisePatterns'
+import { equipmentOf } from '../../lib/equipment'
 import type { ExerciseStats } from '../../db/exerciseStats'
 import type { Exercise } from '../../types'
 

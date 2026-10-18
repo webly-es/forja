@@ -5,20 +5,20 @@ import { db } from '../db/db'
 import { getExerciseStats } from '../db/exerciseStats'
 import { ExerciseEditSheet } from '../components/ExerciseEditSheet'
 import { ExerciseRow } from '../components/exercises/ExerciseRow'
-import { PatternTabs } from '../components/exercises/PatternTabs'
-import { groupsOf, isPatternKey, type PatternKey } from '../lib/exercisePatterns'
-import type { MuscleGroup } from '../lib/muscleGroups'
+import { MuscleChips } from '../components/exercises/MuscleChips'
+import { groupByMuscle } from '../lib/exercises'
+import { MUSCLE_GROUPS, type MuscleGroup } from '../lib/muscleGroups'
 import { useAppStore } from '../store/useAppStore'
 import type { Exercise } from '../types'
 
-const TAB_KEY = 'forja-exercises-tab'
+const GROUP_KEY = 'forja-exercises-group'
 
-function readTab(): PatternKey {
+function readGroup(): MuscleGroup | null {
   try {
-    const saved = localStorage.getItem(TAB_KEY)
-    return isPatternKey(saved) ? saved : 'empuje'
+    const saved = localStorage.getItem(GROUP_KEY)
+    return MUSCLE_GROUPS.find((g) => g === saved) ?? null
   } catch {
-    return 'empuje'
+    return null
   }
 }
 
@@ -33,33 +33,38 @@ export function Exercises() {
   const exercises = useLiveQuery(() => db.exercises.toArray(), [], [])
   const stats = useLiveQuery(() => getExerciseStats(activeProfileId), [activeProfileId])
   const [editing, setEditing] = useState<Exercise | 'new' | null>(null)
-  const [pattern, setPattern] = useState<PatternKey>(readTab)
-  const [group, setGroup] = useState<MuscleGroup | null>(null)
+  const [group, setGroup] = useState<MuscleGroup | null>(readGroup)
   const [query, setQuery] = useState('')
 
-  function choosePattern(next: PatternKey) {
-    setPattern(next)
-    setGroup(null)
+  function chooseGroup(next: MuscleGroup | null) {
+    setGroup(next)
     try {
-      localStorage.setItem(TAB_KEY, next)
+      if (next) localStorage.setItem(GROUP_KEY, next)
+      else localStorage.removeItem(GROUP_KEY)
     } catch {
-      // Private mode: the tab just isn't remembered.
+      // Private mode: the shortcut just isn't remembered.
     }
   }
 
+  const all = exercises ?? []
   const searching = query.trim().length > 0
   const needle = normalize(query.trim())
-  const visibleGroups = group ? [group] : groupsOf(pattern)
-  const list = (exercises ?? [])
-    .filter((ex) => (searching ? normalize(ex.name).includes(needle) : visibleGroups.includes(ex.muscleGroup)))
-    .sort((a, b) => a.name.localeCompare(b.name))
+  const filtered = all.filter((ex) =>
+    searching ? normalize(ex.name).includes(needle) : group === null || ex.muscleGroup === group,
+  )
+  // "Todos" keeps one section per muscle; a single group or a search is one flat list.
+  const sections: [string | null, Exercise[]][] =
+    !searching && group === null
+      ? groupByMuscle(filtered)
+      : [[null, [...filtered].sort((a, b) => a.name.localeCompare(b.name))]]
+  const presentGroups = [...new Set(all.map((ex) => ex.muscleGroup))]
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-end justify-between">
         <div>
           <h1 className="font-display text-3xl uppercase tracking-wide text-text">Ejercicios</h1>
-          <p className="mt-0.5 text-sm text-text-muted">{exercises?.length ?? 0} en el catálogo</p>
+          <p className="mt-0.5 text-sm text-text-muted">{all.length} en el catálogo</p>
         </div>
         <button
           onClick={() => setEditing('new')}
@@ -90,19 +95,29 @@ export function Exercises() {
         )}
       </label>
 
-      {!searching && <PatternTabs pattern={pattern} group={group} onPattern={choosePattern} onGroup={setGroup} />}
+      {!searching && <MuscleChips groups={presentGroups} selected={group} onSelect={chooseGroup} />}
 
-      <div className="flex flex-col gap-2">
-        {list.map((ex) => (
-          <ExerciseRow
-            key={ex.id}
-            exercise={ex}
-            stats={stats?.get(ex.id!)}
-            showGroup={searching || (group === null && visibleGroups.length > 1)}
-            onOpen={() => setEditing(ex)}
-          />
+      <div className="flex flex-col gap-5">
+        {sections.map(([title, list]) => (
+          <section key={title ?? 'list'} className="flex flex-col gap-2">
+            {title && (
+              <h2 className="flex items-baseline gap-2 font-display text-sm uppercase tracking-widest text-accent">
+                {title}
+                <span className="text-xs text-text-muted">{list.length}</span>
+              </h2>
+            )}
+            {list.map((ex) => (
+              <ExerciseRow
+                key={ex.id}
+                exercise={ex}
+                stats={stats?.get(ex.id!)}
+                showGroup={searching}
+                onOpen={() => setEditing(ex)}
+              />
+            ))}
+          </section>
         ))}
-        {list.length === 0 && (
+        {filtered.length === 0 && (
           <button
             onClick={() => setEditing('new')}
             className="flex flex-col items-center gap-1 rounded-xl border border-dashed border-border py-8 text-sm text-text-muted transition-colors hover:border-accent hover:text-accent"
