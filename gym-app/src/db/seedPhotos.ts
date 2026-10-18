@@ -3,7 +3,7 @@ import type { ExercisePhoto } from '../types'
 
 // Bump when the bundled exercise art changes: factory photos of an older
 // version are replaced on the next start, photos the user took never are.
-const SEED_PHOTO_VERSION = 2
+const SEED_PHOTO_VERSION = 3
 
 // Exercise name (exact match) -> public/exercise-photos/<file>.webp.
 // 'hombre/…' = photos with Jonathan as the model (Gemini, 2026-10-18); the rest
