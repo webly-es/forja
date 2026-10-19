@@ -5,6 +5,7 @@ import { useAppStore } from '../store/useAppStore'
 import { getHistoryItems, type HistoryItem } from '../db/history'
 import { getRoutineSummaries, type RoutineSummary } from '../db/queries'
 import { coverUrl } from '../lib/routineCovers'
+import { TrainingReportCard } from '../components/TrainingReportCard'
 import { ChevronRight, HeartPulse } from 'lucide-react'
 
 function monthKey(iso: string) {
@@ -77,6 +78,8 @@ export function History() {
         <p className="text-sm text-text-muted">Aún no tienes entrenamientos registrados.</p>
       ) : (
         <>
+          <TrainingReportCard />
+
           <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
             {months.map((m) => (
               <button

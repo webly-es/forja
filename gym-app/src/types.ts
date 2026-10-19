@@ -277,3 +277,15 @@ export interface ExerciseTarget {
   sessionId: number
   createdAt: string
 }
+
+// Coach's read of the last weeks of training, kept per profile (only the latest one).
+export interface TrainingReport {
+  id?: number
+  profileId: number
+  createdAt: string
+  weeks: number
+  summary: string
+  good: string[]
+  problems: { title: string; detail: string }[]
+  actions: { text: string; routineId?: number }[]
+}

@@ -161,11 +161,13 @@ export async function deleteProfile(profileId: number) {
       db.cycleCheckIns,
       db.routines,
       db.routineExercises,
+      db.trainingReports,
     ],
     async () => {
       const owned = (await db.routines.toArray()).filter((r) => r.profileId === profileId).map((r) => r.id!)
       await db.routineExercises.where('routineId').anyOf(owned).delete()
       await db.routines.bulkDelete(owned)
+      await db.trainingReports.where('profileId').equals(profileId).delete()
       await db.bodyWeightLogs.where('profileId').equals(profileId).delete()
       await db.bodyMeasurements.where('profileId').equals(profileId).delete()
       await db.workoutSessions.where('profileId').equals(profileId).delete()

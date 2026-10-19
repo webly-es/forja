@@ -53,7 +53,7 @@ const shortDate = (iso: string) => new Date(iso).toLocaleDateString('es', { day:
 
 // ---- Context blocks shared by every routine prompt ----
 
-function describePerson({ profile, cycle }: TrainingContext): string[] {
+export function describePerson({ profile, cycle }: TrainingContext): string[] {
   const lines = [
     `Persona: ${profile.sex === 'M' ? 'hombre' : 'mujer'}, ${getAge(profile.birthDate)} años, ${profile.heightCm} cm, ${profile.weightKg} kg.`,
     `Objetivo: ${GOAL_LABELS[profile.goal]}.`,
@@ -69,7 +69,7 @@ function describePerson({ profile, cycle }: TrainingContext): string[] {
   return lines
 }
 
-function describeHistory(ctx: TrainingContext): string[] {
+export function describeHistory(ctx: TrainingContext): string[] {
   const perWeek = ctx.sessions.length / ctx.weeks
   const lines = [
     `Historial de las últimas ${ctx.weeks} semanas: ${ctx.sessions.length} entrenamientos de fuerza (${perWeek.toLocaleString('es', { maximumFractionDigits: 1 })} por semana).`,
@@ -116,7 +116,7 @@ function designRules(ctx: TrainingContext): string[] {
   ]
 }
 
-const STYLE =
+export const STYLE =
   'Escribe en español de España con tildes y ortografía correctas, tuteando siempre. Tono serio, directo y breve, sin emojis ni exclamaciones.'
 
 // ---- Response parsing ----
