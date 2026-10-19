@@ -3,7 +3,7 @@ import type { ExercisePhoto } from '../types'
 
 // Bump when the bundled exercise art changes: factory photos of an older
 // version are replaced on the next start, photos the user took never are.
-const SEED_PHOTO_VERSION = 5
+const SEED_PHOTO_VERSION = 6
 
 // Exercise name (exact match) -> public/exercise-photos/<file>.webp.
 // 'hombre/…' = photos with Jonathan as the model (Gemini, 2026-10-18); the rest
@@ -22,6 +22,7 @@ const SEED_PHOTOS: [exerciseName: string, file: string][] = [
   ['Jalón al pecho, agarre ancho', 'hombre/jalon-maquina-discos'], // same machine; its own photo came out wrong
   ['Jalón al pecho, agarre cerrado', 'jalon-agarre-cerrado'],
   ['Remo sentado en máquina', 'hombre/remo-sentado-maquina'],
+  ['Remo en máquina agarre martillo', 'hombre/remo-sentado-maquina'], // his own exercise, same machine
   ['Jalón en máquina de discos', 'hombre/jalon-maquina-discos'],
   ['Dominadas', 'hombre/dominadas'],
   ['Remo con barra', 'hombre/remo-barra'],
@@ -99,9 +100,21 @@ function isFactoryPhoto(photo: ExercisePhoto): boolean {
   return photo.source === 'seed' || LEGACY_SEED_SIZES.has(photo.blob.size)
 }
 
+// Names are matched ignoring case, accents and punctuation, so an exercise the
+// user typed by hand ("remo en maquina agarre martillo") still gets its photo.
+function nameKey(name: string): string {
+  return name
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
 export async function ensureExercisePhotosSeeded() {
+  const byName = new Map((await db.exercises.toArray()).map((e) => [nameKey(e.name), e]))
   for (const [exerciseName, file] of SEED_PHOTOS) {
-    const exercise = await db.exercises.where('name').equals(exerciseName).first()
+    const exercise = byName.get(nameKey(exerciseName))
     if (!exercise?.id) continue
 
     const current = await db.exercisePhotos.get(exercise.id)
