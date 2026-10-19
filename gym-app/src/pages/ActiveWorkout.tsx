@@ -11,7 +11,8 @@ import { RecordToast } from '../components/RecordToast'
 import type { PersonalRecord } from '../lib/records'
 import { MET_STRENGTH_TRAINING, estimateCalories } from '../lib/calories'
 import { ArrowLeft, Check } from 'lucide-react'
-import type { Exercise } from '../types'
+import { linkToItem } from '../db/routines'
+import type { Exercise, RoutineItem } from '../types'
 
 export function ActiveWorkout() {
   const { sessionId } = useParams()
@@ -27,23 +28,26 @@ export function ActiveWorkout() {
 
   const session = useLiveQuery(() => db.workoutSessions.get(id), [id])
   const profile = useLiveQuery(() => (session ? db.profiles.get(session.profileId) : undefined), [session])
+  // Each exercise with the routine's prescription for it (sets, reps, rest), if any.
   const exercises = useLiveQuery(
-    () =>
-      session
-        ? db.routineExercises
-            .where('routineId')
-            .equals(session.routineId)
-            .sortBy('order')
-            .then((links) => db.exercises.bulkGet(links.map((l) => l.exerciseId)))
-            .then((list) => list.filter((ex): ex is Exercise => ex != null))
-        : Promise.resolve<Exercise[]>([]),
+    async () => {
+      if (!session) return []
+      const links = await db.routineExercises.where('routineId').equals(session.routineId).sortBy('order')
+      const list = await db.exercises.bulkGet(links.map((l) => l.exerciseId))
+      return links.flatMap((link, i) => {
+        const exercise = list[i]
+        return exercise ? [{ exercise, plan: linkToItem(link) }] : []
+      })
+    },
     [session],
   )
+  const [restSeconds, setRestSeconds] = useState(restDurationDefault)
 
   const [record, setRecord] = useState<{ key: number; exerciseName: string; record: PersonalRecord } | null>(null)
   const closeRecord = useCallback(() => setRecord(null), [])
 
-  function handleSetLogged(exercise: Exercise, newRecord: PersonalRecord | null) {
+  function handleSetLogged(exercise: Exercise, plan: RoutineItem, newRecord: PersonalRecord | null) {
+    setRestSeconds(plan.restSeconds ?? restDurationDefault)
     setRestKey((k) => k + 1)
     setRestVisible(true)
     if (newRecord) setRecord({ key: Date.now(), exerciseName: exercise.name, record: newRecord })
@@ -86,13 +90,14 @@ export function ActiveWorkout() {
       </div>
 
       <div className="mt-6 flex flex-col gap-3">
-        {exercises.map((ex) => (
+        {exercises.map(({ exercise, plan }) => (
           <ExerciseCard
-            key={ex.id}
-            exercise={ex}
+            key={exercise.id}
+            exercise={exercise}
+            plan={plan}
             profileId={session.profileId}
             sessionId={id}
-            onSetLogged={(r) => handleSetLogged(ex, r)}
+            onSetLogged={(r) => handleSetLogged(exercise, plan, r)}
           />
         ))}
       </div>
@@ -104,7 +109,7 @@ export function ActiveWorkout() {
       {restVisible && !finished && (
         <RestTimer
           key={restKey}
-          initialSeconds={restDurationDefault}
+          initialSeconds={restSeconds}
           onFinish={() => setRestVisible(false)}
           onCancel={() => setRestVisible(false)}
           onChangeDefault={setRestDurationDefault}

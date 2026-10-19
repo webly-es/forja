@@ -6,7 +6,7 @@ import { getExerciseStats } from '../db/exerciseStats'
 import { ExerciseEditSheet } from '../components/ExerciseEditSheet'
 import { ExerciseRow } from '../components/exercises/ExerciseRow'
 import { MuscleChips } from '../components/exercises/MuscleChips'
-import { groupByMuscle } from '../lib/exercises'
+import { groupByMuscle, normalize } from '../lib/exercises'
 import { MUSCLE_GROUPS, type MuscleGroup } from '../lib/muscleGroups'
 import { useAppStore } from '../store/useAppStore'
 import type { Exercise } from '../types'
@@ -21,12 +21,6 @@ function readGroup(): MuscleGroup | null {
     return null
   }
 }
-
-const normalize = (text: string) =>
-  text
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
 
 export function Exercises() {
   const activeProfileId = useAppStore((s) => s.activeProfileId)!

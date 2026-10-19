@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useNavigate } from 'react-router-dom'
 import { db } from '../db/db'
 import { getRoutineSummaries, type RoutineSummary } from '../db/queries'
+import { getRoutinesForProfile } from '../db/routines'
 import { useAppStore } from '../store/useAppStore'
 import { CardioPanel } from '../components/CardioPanel'
 import { CheckInSheet } from '../components/cycle/CheckInSheet'
@@ -23,7 +24,7 @@ export function StartWorkout() {
   const today = todayKey()
 
   const profile = useLiveQuery(() => db.profiles.get(activeProfileId), [activeProfileId])
-  const routines = useLiveQuery(() => db.routines.toArray(), [], [])
+  const routines = useLiveQuery(() => getRoutinesForProfile(activeProfileId), [activeProfileId], [])
   const summaries = useLiveQuery(getRoutineSummaries, [], {} as Record<number, RoutineSummary>)
   // null while loading, so the prompt doesn't flash in when today's check-in exists.
   const checkIn = useLiveQuery(async () => (await getCheckIn(activeProfileId, today)) ?? false, [activeProfileId, today], null)

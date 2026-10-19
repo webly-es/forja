@@ -9,16 +9,18 @@ import { EditSetChip } from './EditSetChip'
 import { MachineSettings } from './MachineSettings'
 import { getExerciseTarget } from '../db/workoutReviews'
 import { Target } from 'lucide-react'
-import type { Exercise } from '../types'
+import { formatPrescription } from '../lib/prescription'
+import type { Exercise, RoutineItem } from '../types'
 
 interface ExerciseCardProps {
   exercise: Exercise
+  plan?: RoutineItem // the routine's prescription for this exercise
   profileId: number
   sessionId: number
   onSetLogged: (record: PersonalRecord | null) => void
 }
 
-export function ExerciseCard({ exercise, profileId, sessionId, onSetLogged }: ExerciseCardProps) {
+export function ExerciseCard({ exercise, plan, profileId, sessionId, onSetLogged }: ExerciseCardProps) {
   const sessionSets = useLiveQuery(
     () =>
       db.sets
@@ -46,10 +48,11 @@ export function ExerciseCard({ exercise, profileId, sessionId, onSetLogged }: Ex
   const [saving, setSaving] = useState(false)
 
   const sets = sessionSets ?? []
+  const prescription = plan ? formatPrescription(plan) : null
   const lastLoggedInSession = sets[sets.length - 1]
   // First set: the coach's target if there is one, else last time. Later sets: repeat the previous one.
   const defaultWeight = lastLoggedInSession?.weightKg ?? target?.weightKg ?? lastSet?.weightKg
-  const defaultReps = lastLoggedInSession?.reps ?? target?.reps ?? lastSet?.reps
+  const defaultReps = lastLoggedInSession?.reps ?? target?.reps ?? lastSet?.reps ?? plan?.repMin
 
   async function handleSaveSet(weightKg: number, reps: number) {
     setSaving(true)
@@ -70,6 +73,14 @@ export function ExerciseCard({ exercise, profileId, sessionId, onSetLogged }: Ex
           <div>
             <h3 className="font-medium text-text">{exercise.name}</h3>
             <span className="text-xs text-text-muted">{exercise.muscleGroup}</span>
+            {prescription && (
+              <span className="mt-0.5 block text-xs font-medium text-accent">
+                {prescription}
+                {plan?.sets != null && sets.length > 0 && (
+                  <span className="font-normal text-text-muted"> · {Math.min(sets.length, plan.sets)}/{plan.sets} hechas</span>
+                )}
+              </span>
+            )}
           </div>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">

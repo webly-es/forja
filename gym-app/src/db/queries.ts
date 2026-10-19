@@ -140,8 +140,8 @@ export async function deleteRoutine(routineId: number) {
 }
 
 // Deletes a profile and everything scoped to it (weight log, workout
-// sessions, sets, cardio sessions, food log, steps, machine settings, AI reviews and targets, cycle logs and check-ins). Exercises/routines/exercisePhotos are
-// shared across profiles and are left untouched.
+// sessions, sets, cardio sessions, food log, steps, machine settings, AI reviews and targets, cycle logs and check-ins,
+// routines it owns). Exercises, shared routines and exercisePhotos are left untouched.
 export async function deleteProfile(profileId: number) {
   await db.transaction(
     'rw',
@@ -159,8 +159,13 @@ export async function deleteProfile(profileId: number) {
       db.exerciseTargets,
       db.periodLogs,
       db.cycleCheckIns,
+      db.routines,
+      db.routineExercises,
     ],
     async () => {
+      const owned = (await db.routines.toArray()).filter((r) => r.profileId === profileId).map((r) => r.id!)
+      await db.routineExercises.where('routineId').anyOf(owned).delete()
+      await db.routines.bulkDelete(owned)
       await db.bodyWeightLogs.where('profileId').equals(profileId).delete()
       await db.bodyMeasurements.where('profileId').equals(profileId).delete()
       await db.workoutSessions.where('profileId').equals(profileId).delete()

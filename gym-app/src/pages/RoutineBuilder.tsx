@@ -1,90 +1,81 @@
 import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ArrowUp, ArrowDown, X, Trash2 } from 'lucide-react'
+import { ArrowLeft, Trash2 } from 'lucide-react'
 import { db } from '../db/db'
 import { deleteRoutine } from '../db/queries'
-import { addSeedTombstone, tombstoneKeys } from '../db/seedTombstones'
-import { groupByMuscle } from '../lib/exercises'
-import { MuscleGroupAccordion } from '../components/MuscleGroupAccordion'
+import { getRoutineDraft, saveRoutine } from '../db/routines'
+import { useAppStore } from '../store/useAppStore'
+import { coverForGroups, coverUrl } from '../lib/routineCovers'
 import { ConfirmDeleteRow } from '../components/ConfirmDeleteRow'
-import type { RoutineExercise } from '../types'
+import { CatalogPicker } from '../components/routines/CatalogPicker'
+import { MuscleBalance } from '../components/routines/MuscleBalance'
+import { SelectedExerciseCard } from '../components/routines/SelectedExerciseCard'
+import type { RoutineDraft, RoutineItem } from '../types'
 
 export function RoutineBuilder() {
   const { routineId } = useParams()
   const editingId = routineId ? Number(routineId) : null
   const navigate = useNavigate()
+  const activeProfileId = useAppStore((s) => s.activeProfileId)!
 
-  const routine = useLiveQuery(() => (editingId ? db.routines.get(editingId) : undefined), [editingId])
-  const existingLinks = useLiveQuery(
-    () =>
-      editingId
-        ? db.routineExercises.where('routineId').equals(editingId).sortBy('order')
-        : Promise.resolve<RoutineExercise[]>([]),
-    [editingId],
-  )
   const allExercises = useLiveQuery(() => db.exercises.toArray(), [], [])
+  const profileCount = useLiveQuery(() => db.profiles.count(), [], 1)
 
-  const [name, setName] = useState('')
-  const [selected, setSelected] = useState<number[]>([])
+  const [draft, setDraft] = useState<RoutineDraft | null>(null)
+  const [expandedId, setExpandedId] = useState<number | null>(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
-  const [initialized, setInitialized] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    if (initialized) return
-    if (editingId && (routine === undefined || existingLinks === undefined)) return
-    setName(routine?.name ?? '')
-    setSelected((existingLinks ?? []).map((l) => l.exerciseId))
-    setInitialized(true)
-  }, [initialized, editingId, routine, existingLinks])
+    let cancelled = false
+    const load = editingId ? getRoutineDraft(editingId) : Promise.resolve(undefined)
+    void load.then((existing) => {
+      if (!cancelled) setDraft(existing ?? { name: '', profileId: activeProfileId, items: [] })
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [editingId, activeProfileId])
+
+  if (!draft) return null
 
   const exercisesById = new Map((allExercises ?? []).map((e) => [e.id!, e]))
-  const groups = groupByMuscle(allExercises ?? [])
+  const items = draft.items.filter((i) => exercisesById.has(i.exerciseId))
+  const selectedIds = items.map((i) => i.exerciseId)
+  const cover = coverForGroups(items.map((i) => exercisesById.get(i.exerciseId)!.muscleGroup))
+  const canSave = draft.name.trim() !== '' && items.length > 0 && !saving
+
+  const setItems = (update: (items: RoutineItem[]) => RoutineItem[]) =>
+    setDraft((d) => (d ? { ...d, items: update(d.items) } : d))
 
   function toggle(exerciseId: number) {
-    setSelected((prev) =>
-      prev.includes(exerciseId) ? prev.filter((id) => id !== exerciseId) : [...prev, exerciseId],
+    setItems((list) =>
+      list.some((i) => i.exerciseId === exerciseId)
+        ? list.filter((i) => i.exerciseId !== exerciseId)
+        : [...list, { exerciseId }],
     )
   }
 
   function move(index: number, dir: -1 | 1) {
-    setSelected((prev) => {
-      const next = [...prev]
+    setItems((list) => {
       const target = index + dir
-      if (target < 0 || target >= next.length) return prev
+      if (target < 0 || target >= list.length) return list
+      const next = [...list]
       ;[next[index], next[target]] = [next[target], next[index]]
       return next
     })
   }
 
-  const canSave = name.trim() !== '' && selected.length > 0
-
   async function handleSave() {
-    if (!canSave) return
-    await db.transaction('rw', db.routines, db.routineExercises, db.seedTombstones, async () => {
-      let id = editingId
-      if (id) {
-        await db.routines.update(id, { name: name.trim() })
-        if (routine) {
-          const removedIds = (existingLinks ?? [])
-            .map((l) => l.exerciseId)
-            .filter((exId) => !selected.includes(exId))
-          for (const exId of removedIds) {
-            const exName = exercisesById.get(exId)?.name
-            if (exName) {
-              await addSeedTombstone(tombstoneKeys.link(routine.key, exName))
-            }
-          }
-        }
-      } else {
-        id = (await db.routines.add({ key: `custom-${Date.now()}`, name: name.trim() })) as number
-      }
-      await db.routineExercises.where('routineId').equals(id).delete()
-      for (let i = 0; i < selected.length; i++) {
-        await db.routineExercises.add({ routineId: id, exerciseId: selected[i], order: i })
-      }
-    })
-    navigate('/workout/start')
+    if (!draft || !canSave) return
+    setSaving(true)
+    try {
+      await saveRoutine({ ...draft, items })
+      navigate('/workout/start')
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function handleDelete() {
@@ -93,111 +84,93 @@ export function RoutineBuilder() {
     navigate('/workout/start')
   }
 
-  if (!initialized) return null
+  const ownerButton = (active: boolean) =>
+    `flex-1 rounded-lg py-2 text-sm font-medium transition-all active:scale-[0.97] ${
+      active ? 'bg-accent text-bg' : 'text-text-muted hover:text-text'
+    }`
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center gap-3">
+    <div className="flex flex-col gap-5">
+      <div className="card-forged relative h-32 overflow-hidden">
+        <img src={coverUrl(cover)} alt="" className="absolute inset-0 -z-10 h-full w-full object-cover object-right" />
+        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-bg via-bg/70 to-transparent" />
         <button
           onClick={() => navigate('/workout/start')}
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-text-muted hover:text-text"
+          className="absolute left-2.5 top-2.5 flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-bg/60 text-text-muted backdrop-blur transition-colors hover:text-text"
           aria-label="Volver"
         >
-          <ArrowLeft size={20} />
+          <ArrowLeft size={18} />
         </button>
-        <h1 className="text-2xl font-semibold tracking-tight text-text">
-          {editingId ? 'Editar rutina' : 'Crear rutina'}
-        </h1>
-      </div>
-
-      <div>
-        <label className="mb-1 block text-xs uppercase tracking-wide text-text-muted">Nombre de la rutina</label>
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="input"
-          placeholder="Ej. Día 1 - Pecho y tríceps"
-        />
-      </div>
-
-      {selected.length > 0 && (
-        <div>
-          <h2 className="mb-3 text-xs uppercase tracking-wide text-text-muted">
-            Ejercicios elegidos ({selected.length})
-          </h2>
-          <div className="flex flex-col gap-2">
-            {selected.map((id, i) => {
-              const ex = exercisesById.get(id)
-              if (!ex) return null
-              return (
-                <div
-                  key={id}
-                  className="flex items-center gap-2 rounded-xl border border-accent-muted bg-accent-muted/20 p-3"
-                >
-                  <span className="flex-1 text-sm text-text">{ex.name}</span>
-                  <button
-                    onClick={() => move(i, -1)}
-                    disabled={i === 0}
-                    className="text-text-muted disabled:opacity-30"
-                    aria-label="Subir"
-                  >
-                    <ArrowUp size={16} />
-                  </button>
-                  <button
-                    onClick={() => move(i, 1)}
-                    disabled={i === selected.length - 1}
-                    className="text-text-muted disabled:opacity-30"
-                    aria-label="Bajar"
-                  >
-                    <ArrowDown size={16} />
-                  </button>
-                  <button onClick={() => toggle(id)} className="text-danger" aria-label="Quitar">
-                    <X size={16} />
-                  </button>
-                </div>
-              )
-            })}
-          </div>
+        <div className="flex h-full flex-col justify-end p-4">
+          <span className="text-[11px] uppercase tracking-widest text-accent">{editingId ? 'Editar rutina' : 'Nueva rutina'}</span>
+          <h1 className="truncate font-display text-2xl uppercase leading-tight tracking-wide text-text">
+            {draft.name.trim() || 'Sin nombre'}
+          </h1>
         </div>
+      </div>
+
+      <div className="flex flex-col gap-3">
+        <div>
+          <label className="mb-1 block text-xs uppercase tracking-wide text-text-muted">Nombre</label>
+          <input
+            type="text"
+            value={draft.name}
+            onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+            className="input"
+            placeholder="Ej. Día 1 - Pecho y tríceps"
+          />
+        </div>
+        {profileCount > 1 && (
+          <div className="flex gap-2 rounded-xl border border-border bg-surface p-1">
+            <button onClick={() => setDraft({ ...draft, profileId: activeProfileId })} className={ownerButton(draft.profileId != null)}>
+              Solo para mí
+            </button>
+            <button onClick={() => setDraft({ ...draft, profileId: undefined })} className={ownerButton(draft.profileId == null)}>
+              Para ambos
+            </button>
+          </div>
+        )}
+      </div>
+
+      {draft.notes && (
+        <p className="rounded-xl border border-accent-muted bg-accent-muted/20 px-4 py-3 text-xs leading-relaxed text-text-muted">
+          {draft.notes}
+        </p>
       )}
 
-      <div>
-        <h2 className="mb-3 text-xs uppercase tracking-wide text-text-muted">Agregar del catálogo</h2>
-        <div className="flex flex-col gap-1">
-          {groups.map(([muscleGroup, list]) => {
-            const hasSelection = list.some((ex) => selected.includes(ex.id!))
-            return (
-              <MuscleGroupAccordion key={muscleGroup} label={muscleGroup} count={list.length} defaultOpen={hasSelection}>
-                {list.map((ex) => {
-                  const isSelected = selected.includes(ex.id!)
-                  return (
-                    <button
-                      key={ex.id}
-                      onClick={() => toggle(ex.id!)}
-                      className={`rounded-lg border p-2.5 text-left text-sm transition-colors active:scale-[0.98] ${
-                        isSelected
-                          ? 'border-accent bg-accent-muted/20 text-accent'
-                          : 'border-border bg-surface text-text hover:border-accent'
-                      }`}
-                    >
-                      {ex.name}
-                    </button>
-                  )
-                })}
-              </MuscleGroupAccordion>
-            )
-          })}
-        </div>
-      </div>
+      <section className="flex flex-col gap-2.5">
+        <h2 className="flex items-baseline gap-2 font-display text-sm uppercase tracking-widest text-accent">
+          Tu rutina
+          <span className="text-xs text-text-muted">{items.length}</span>
+        </h2>
+        <MuscleBalance items={items} exercisesById={exercisesById} />
+        {items.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-border py-6 text-center text-sm text-text-muted">
+            Añade ejercicios del catálogo de abajo
+          </p>
+        ) : (
+          items.map((item, i) => (
+            <SelectedExerciseCard
+              key={item.exerciseId}
+              index={i}
+              exercise={exercisesById.get(item.exerciseId)!}
+              item={item}
+              isFirst={i === 0}
+              isLast={i === items.length - 1}
+              expanded={expandedId === item.exerciseId}
+              onToggleExpanded={() => setExpandedId((id) => (id === item.exerciseId ? null : item.exerciseId))}
+              onChange={(next) => setItems((list) => list.map((x) => (x.exerciseId === next.exerciseId ? next : x)))}
+              onMove={(dir) => move(i, dir)}
+              onRemove={() => toggle(item.exerciseId)}
+            />
+          ))
+        )}
+      </section>
 
-      <button
-        onClick={handleSave}
-        disabled={!canSave}
-        className="rounded-lg bg-accent py-3 text-sm font-medium text-bg transition-all disabled:opacity-30 hover:bg-accent-hover active:enabled:scale-[0.97]"
-      >
-        Guardar rutina
-      </button>
+      <section className="flex flex-col gap-2.5">
+        <h2 className="font-display text-sm uppercase tracking-widest text-accent">Añadir ejercicios</h2>
+        <CatalogPicker exercises={allExercises ?? []} selectedIds={selectedIds} onToggle={toggle} />
+      </section>
 
       {editingId && (
         <div>
@@ -220,6 +193,16 @@ export function RoutineBuilder() {
           )}
         </div>
       )}
+
+      <div className="sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-20 -mx-4 bg-gradient-to-t from-bg via-bg/95 to-transparent px-4 pb-2 pt-4">
+        <button
+          onClick={handleSave}
+          disabled={!canSave}
+          className="w-full rounded-xl bg-accent py-3.5 text-sm font-medium text-bg shadow-[0_0_24px_-8px_var(--color-accent)] transition-all hover:bg-accent-hover active:enabled:scale-[0.97] disabled:opacity-30"
+        >
+          {saving ? 'Guardando…' : `Guardar rutina${items.length ? ` · ${items.length} ejercicios` : ''}`}
+        </button>
+      </div>
     </div>
   )
 }

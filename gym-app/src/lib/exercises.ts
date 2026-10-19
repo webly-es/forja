@@ -14,3 +14,10 @@ export function groupByMuscle(exercises: Exercise[]): [string, Exercise[]][] {
     )
     .sort((a, b) => MUSCLE_GROUPS.indexOf(a[0] as (typeof MUSCLE_GROUPS)[number]) - MUSCLE_GROUPS.indexOf(b[0] as (typeof MUSCLE_GROUPS)[number]))
 }
+
+// Accent- and case-insensitive text for searching exercise names.
+export const normalize = (text: string) =>
+  text
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()

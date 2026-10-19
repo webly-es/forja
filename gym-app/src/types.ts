@@ -88,6 +88,8 @@ export interface Routine {
   key: string
   name: string
   format?: RoutineFormat // undefined = normal routine
+  profileId?: number // owner; undefined = shared by every profile
+  notes?: string // why the routine is built this way (AI-generated programs)
 }
 
 export interface RoutineExercise {
@@ -95,6 +97,28 @@ export interface RoutineExercise {
   routineId: number
   exerciseId: number
   order: number
+  // Optional prescription; empty = free logging as before.
+  sets?: number
+  repMin?: number
+  repMax?: number
+  restSeconds?: number
+}
+
+// One exercise of a routine being edited (builder, AI proposals), in routine order.
+export interface RoutineItem {
+  exerciseId: number
+  sets?: number
+  repMin?: number
+  repMax?: number
+  restSeconds?: number
+}
+
+export interface RoutineDraft {
+  id?: number // undefined = not saved yet
+  name: string
+  profileId?: number
+  notes?: string
+  items: RoutineItem[]
 }
 
 export interface WorkoutSession {
