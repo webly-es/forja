@@ -121,6 +121,23 @@ export interface RoutineDraft {
   items: RoutineItem[]
 }
 
+// A routine proposed by the AI coach, with a short reason per exercise.
+export interface AiRoutineItem extends RoutineItem {
+  reason?: string
+}
+
+export interface AiRoutine {
+  name: string
+  focus: string
+  items: AiRoutineItem[]
+}
+
+export interface AiProgram {
+  name: string
+  summary: string
+  days: AiRoutine[]
+}
+
 export interface WorkoutSession {
   id?: number
   profileId: number

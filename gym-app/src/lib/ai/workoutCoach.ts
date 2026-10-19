@@ -5,7 +5,7 @@ import { describeExerciseHistory, describeRecentContext } from '../workoutHistor
 import { generateJson } from './geminiClient'
 import { NO_PERIOD_LABELS, PHASE_LABELS, describeCheckIn } from '../cycle'
 
-const REP_RANGES: Record<Goal, { min: number; max: number }> = {
+export const REP_RANGES: Record<Goal, { min: number; max: number }> = {
   gain: { min: 6, max: 12 },
   recomp: { min: 8, max: 12 },
   maintain: { min: 8, max: 12 },

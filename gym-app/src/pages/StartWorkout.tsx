@@ -10,7 +10,7 @@ import { CheckInSheet } from '../components/cycle/CheckInSheet'
 import { getCheckIn } from '../db/cycle'
 import { todayKey } from '../lib/dates'
 import { coverUrl } from '../lib/routineCovers'
-import { HeartPulse, ListChecks, Plus, Pencil } from 'lucide-react'
+import { ChevronRight, HeartPulse, ListChecks, Plus, Pencil, Sparkles } from 'lucide-react'
 
 type Mode = 'strength' | 'cardio'
 
@@ -82,6 +82,19 @@ export function StartWorkout() {
 
       {mode === 'strength' ? (
         <div className="flex flex-col gap-3">
+          <button
+            onClick={() => navigate('/workout/routines/ai')}
+            className="card-forged flex items-center gap-3 p-4 text-left transition-colors hover:border-accent-muted active:scale-[0.98]"
+          >
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-accent">
+              <Sparkles size={19} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-medium text-text">Crear programa con IA</span>
+              <span className="block text-xs text-text-muted">A medida de tu objetivo, tu nivel y tu historial</span>
+            </span>
+            <ChevronRight size={16} className="shrink-0 text-text-muted" />
+          </button>
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => navigate('/workout/routines/new')}

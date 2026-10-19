@@ -13,6 +13,7 @@ import { ActiveWorkout } from './pages/ActiveWorkout'
 import { LadderWorkout } from './pages/LadderWorkout'
 import { Exercises } from './pages/Exercises'
 import { RoutineBuilder } from './pages/RoutineBuilder'
+import { AiProgram } from './pages/AiProgram'
 import { History } from './pages/History'
 import { HistoryDetail } from './pages/HistoryDetail'
 import { CardioDetail } from './pages/CardioDetail'
@@ -51,6 +52,7 @@ function App() {
             <Route path="/home" element={<Home />} />
             <Route path="/workout/start" element={<StartWorkout />} />
             <Route path="/workout/routines/new" element={<RoutineBuilder />} />
+            <Route path="/workout/routines/ai" element={<AiProgram />} />
             <Route path="/workout/routines/:routineId/edit" element={<RoutineBuilder />} />
             <Route path="/exercises" element={<Exercises />} />
             <Route path="/history" element={<History />} />
