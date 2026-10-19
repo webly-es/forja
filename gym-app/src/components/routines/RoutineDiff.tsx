@@ -1,6 +1,6 @@
 import { ArrowUpDown, Minus, Plus, SlidersHorizontal } from 'lucide-react'
 import { diffRoutines, type RoutineChange } from '../../lib/routineDiff'
-import { formatPrescription } from '../../lib/prescription'
+import { formatPrescription, hasPrescription } from '../../lib/prescription'
 import type { Exercise, RoutineItem } from '../../types'
 
 const KIND: Record<RoutineChange['kind'], { icon: typeof Plus; label: string; className: string }> = {
@@ -20,8 +20,12 @@ export function RoutineDiff({
   after: RoutineItem[]
   exercisesById: Map<number, Exercise>
 }) {
-  const changes = diffRoutines(before, after)
-  if (changes.length === 0) return <p className="text-sm text-text-muted">No cambia nada de la rutina.</p>
+  const all = diffRoutines(before, after)
+  // Prescriptions filled in where there were none: one line instead of one per exercise,
+  // so they don't bury the change that was asked for.
+  const filled = all.filter((c) => c.kind === 'changed' && c.before && !hasPrescription(c.before))
+  const changes = all.filter((c) => !filled.includes(c))
+  if (all.length === 0) return <p className="text-sm text-text-muted">No cambia nada de la rutina.</p>
 
   return (
     <ul className="flex flex-col divide-y divide-white/[0.06] overflow-hidden rounded-xl border border-border bg-surface-2">
@@ -46,6 +50,14 @@ export function RoutineDiff({
           </li>
         )
       })}
+      {filled.length > 0 && (
+        <li className="flex items-start gap-2.5 px-3 py-2.5">
+          <SlidersHorizontal size={15} className="mt-0.5 shrink-0 text-text-muted" />
+          <span className="text-xs leading-relaxed text-text-muted">
+            Añade series y repeticiones a {filled.length === 1 ? '1 ejercicio que no tenía' : `${filled.length} ejercicios que no tenían`}
+          </span>
+        </li>
+      )}
     </ul>
   )
 }
