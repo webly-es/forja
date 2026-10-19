@@ -3,7 +3,7 @@ import type { ExercisePhoto } from '../types'
 
 // Bump when the bundled exercise art changes: factory photos of an older
 // version are replaced on the next start, photos the user took never are.
-const SEED_PHOTO_VERSION = 6
+const SEED_PHOTO_VERSION = 7
 
 // Exercise name (exact match) -> public/exercise-photos/<file>.webp.
 // 'hombre/…' = photos with Jonathan as the model (Gemini, 2026-10-18); the rest
@@ -96,6 +96,10 @@ const LEGACY_SEED_SIZES = new Set([
   248575, 29609, 39851, 252114, 76234, 44289,
 ])
 
+// Exercises whose current photo is replaced even if the user took it themselves
+// (he asked for it). Once replaced it counts as a factory photo, so this only happens once.
+const FORCE_REPLACE = new Set(['Remo en máquina agarre martillo'])
+
 function isFactoryPhoto(photo: ExercisePhoto): boolean {
   return photo.source === 'seed' || LEGACY_SEED_SIZES.has(photo.blob.size)
 }
@@ -118,7 +122,8 @@ export async function ensureExercisePhotosSeeded() {
     if (!exercise?.id) continue
 
     const current = await db.exercisePhotos.get(exercise.id)
-    if (current && (!isFactoryPhoto(current) || current.seedVersion === SEED_PHOTO_VERSION)) continue
+    const replaceable = current && (isFactoryPhoto(current) || FORCE_REPLACE.has(exerciseName))
+    if (current && (!replaceable || current.seedVersion === SEED_PHOTO_VERSION)) continue
 
     try {
       const res = await fetch(`${import.meta.env.BASE_URL}exercise-photos/${file}.webp`)
