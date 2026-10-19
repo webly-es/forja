@@ -8,9 +8,17 @@ import { ExercisePhoto } from './ExercisePhoto'
 import { EditSetChip } from './EditSetChip'
 import { MachineSettings } from './MachineSettings'
 import { getExerciseTarget } from '../db/workoutReviews'
-import { Target } from 'lucide-react'
+import { Sparkles, Target } from 'lucide-react'
+import { liveHint, type LiveHint } from '../lib/liveCoach'
 import { formatPrescription } from '../lib/prescription'
 import type { Exercise, RoutineItem } from '../types'
+
+const HINT_TONE: Record<LiveHint['tone'], string> = {
+  up: 'text-accent',
+  down: 'text-danger',
+  ok: 'text-text-muted',
+  done: 'text-accent',
+}
 
 interface ExerciseCardProps {
   exercise: Exercise
@@ -18,9 +26,10 @@ interface ExerciseCardProps {
   profileId: number
   sessionId: number
   onSetLogged: (record: PersonalRecord | null) => void
+  onAskCoach?: () => void
 }
 
-export function ExerciseCard({ exercise, plan, profileId, sessionId, onSetLogged }: ExerciseCardProps) {
+export function ExerciseCard({ exercise, plan, profileId, sessionId, onSetLogged, onAskCoach }: ExerciseCardProps) {
   const sessionSets = useLiveQuery(
     () =>
       db.sets
@@ -49,6 +58,7 @@ export function ExerciseCard({ exercise, plan, profileId, sessionId, onSetLogged
 
   const sets = sessionSets ?? []
   const prescription = plan ? formatPrescription(plan) : null
+  const hint = liveHint(exercise.name, sets, plan, target)
   const lastLoggedInSession = sets[sets.length - 1]
   // First set: the coach's target if there is one, else last time. Later sets: repeat the previous one.
   const defaultWeight = lastLoggedInSession?.weightKg ?? target?.weightKg ?? lastSet?.weightKg
@@ -114,7 +124,19 @@ export function ExerciseCard({ exercise, plan, profileId, sessionId, onSetLogged
         </p>
       )}
 
-      <MachineSettings profileId={profileId} exerciseId={exercise.id!} />
+      <div className="flex items-start justify-between gap-2">
+        <MachineSettings profileId={profileId} exerciseId={exercise.id!} />
+        {onAskCoach && (
+          <button
+            type="button"
+            onClick={onAskCoach}
+            className="mt-3 flex shrink-0 items-center gap-1 text-xs text-accent hover:text-accent-hover"
+          >
+            <Sparkles size={13} />
+            Coach
+          </button>
+        )}
+      </div>
 
       {sets.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-2">
@@ -138,6 +160,8 @@ export function ExerciseCard({ exercise, plan, profileId, sessionId, onSetLogged
           )}
         </div>
       )}
+
+      {hint && <p className={`mt-2.5 text-xs leading-relaxed ${HINT_TONE[hint.tone]}`}>{hint.text}</p>}
 
       <div className="mt-3">
         <SetLogger

@@ -12,6 +12,8 @@ import type { PersonalRecord } from '../lib/records'
 import { MET_STRENGTH_TRAINING, estimateCalories } from '../lib/calories'
 import { ArrowLeft, Check } from 'lucide-react'
 import { linkToItem } from '../db/routines'
+import { applySwaps } from '../db/workoutSwaps'
+import { CoachSheet } from '../components/CoachSheet'
 import type { Exercise, RoutineItem } from '../types'
 
 export function ActiveWorkout() {
@@ -28,19 +30,23 @@ export function ActiveWorkout() {
 
   const session = useLiveQuery(() => db.workoutSessions.get(id), [id])
   const profile = useLiveQuery(() => (session ? db.profiles.get(session.profileId) : undefined), [session])
-  // Each exercise with the routine's prescription for it (sets, reps, rest), if any.
+  // Each exercise with the routine's prescription for it (sets, reps, rest), with today's swaps applied.
   const exercises = useLiveQuery(
     async () => {
       if (!session) return []
       const links = await db.routineExercises.where('routineId').equals(session.routineId).sortBy('order')
-      const list = await db.exercises.bulkGet(links.map((l) => l.exerciseId))
-      return links.flatMap((link, i) => {
+      const logged = new Set((await db.sets.where('sessionId').equals(id).toArray()).map((s) => s.exerciseId))
+      const entries = applySwaps(links.map((l) => l.exerciseId), session.swaps, logged)
+      const list = await db.exercises.bulkGet(entries.map((e) => e.id))
+      return entries.flatMap((entry, i) => {
         const exercise = list[i]
-        return exercise ? [{ exercise, plan: linkToItem(link) }] : []
+        const link = links.find((l) => l.exerciseId === entry.from)
+        return exercise && link ? [{ exercise, plan: linkToItem(link) }] : []
       })
     },
-    [session],
+    [session, id],
   )
+  const [coachFor, setCoachFor] = useState<{ exercise: Exercise; plan: RoutineItem } | null>(null)
   const [restSeconds, setRestSeconds] = useState(restDurationDefault)
 
   const [record, setRecord] = useState<{ key: number; exerciseName: string; record: PersonalRecord } | null>(null)
@@ -98,6 +104,7 @@ export function ActiveWorkout() {
             profileId={session.profileId}
             sessionId={id}
             onSetLogged={(r) => handleSetLogged(exercise, plan, r)}
+            onAskCoach={() => setCoachFor({ exercise, plan })}
           />
         ))}
       </div>
@@ -113,6 +120,17 @@ export function ActiveWorkout() {
           onFinish={() => setRestVisible(false)}
           onCancel={() => setRestVisible(false)}
           onChangeDefault={setRestDurationDefault}
+        />
+      )}
+
+      {coachFor && profile && (
+        <CoachSheet
+          sessionId={id}
+          profile={profile}
+          exercise={coachFor.exercise}
+          plan={coachFor.plan}
+          routineExerciseIds={exercises.map((e) => e.exercise.id!)}
+          onClose={() => setCoachFor(null)}
         />
       )}
 

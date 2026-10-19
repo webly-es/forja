@@ -148,6 +148,12 @@ export interface WorkoutSession {
   caloriesBurned?: number
   met?: number // undefined = MET_STRENGTH_TRAINING
   ladder?: LadderSetup
+  swaps?: ExerciseSwap[] // exercises replaced for this session only
+}
+
+export interface ExerciseSwap {
+  from: number // exercise id in the routine
+  to: number
 }
 
 // Settings of a ladder circuit session, chosen before starting.
