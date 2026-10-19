@@ -3,13 +3,13 @@ import type { ExercisePhoto } from '../types'
 
 // Bump when the bundled exercise art changes: factory photos of an older
 // version are replaced on the next start, photos the user took never are.
-const SEED_PHOTO_VERSION = 4
+const SEED_PHOTO_VERSION = 5
 
 // Exercise name (exact match) -> public/exercise-photos/<file>.webp.
 // 'hombre/…' = photos with Jonathan as the model (Gemini, 2026-10-18); the rest
 // keep the golden-figure illustrations (2026-10-15) because Gemini wouldn't draw them.
 const SEED_PHOTOS: [exerciseName: string, file: string][] = [
-  ['Press de pecho sentado en máquina', 'press-pecho-sentado-maquina'],
+  ['Press de pecho sentado en máquina', 'hombre/press-pecho-sentado-maquina'],
   ['Press de pecho vertical en máquina', 'hombre/press-pecho-vertical-maquina'],
   ['Press inclinado con mancuernas', 'hombre/press-inclinado-mancuernas'],
   ['Press inclinado en máquina', 'hombre/press-inclinado-maquina'],
@@ -17,11 +17,11 @@ const SEED_PHOTOS: [exerciseName: string, file: string][] = [
   ['Press de banca con barra', 'hombre/press-banca-barra'],
   ['Press de banca con mancuernas', 'hombre/press-banca-mancuernas'],
   ['Cruce de poleas', 'hombre/cruce-poleas'],
-  ['Fondos en paralelas', 'fondos-paralelas'],
-  ['Fondos en máquina (pectoral bajo)', 'fondos-paralelas'],
+  ['Fondos en paralelas', 'hombre/fondos-paralelas'],
+  ['Fondos en máquina (pectoral bajo)', 'hombre/fondos-paralelas'],
   ['Jalón al pecho, agarre ancho', 'hombre/jalon-maquina-discos'], // same machine; its own photo came out wrong
   ['Jalón al pecho, agarre cerrado', 'jalon-agarre-cerrado'],
-  ['Remo sentado en máquina', 'remo-sentado-maquina'],
+  ['Remo sentado en máquina', 'hombre/remo-sentado-maquina'],
   ['Jalón en máquina de discos', 'hombre/jalon-maquina-discos'],
   ['Dominadas', 'hombre/dominadas'],
   ['Remo con barra', 'hombre/remo-barra'],
@@ -48,7 +48,7 @@ const SEED_PHOTOS: [exerciseName: string, file: string][] = [
   ['Curl en polea con el codo atrás (bayesiano)', 'curl-bayesiano'],
   ['Extensión de tríceps en polea con cuerda', 'hombre/triceps-polea-cuerda'],
   ['Extensión de tríceps en polea a una mano', 'hombre/triceps-polea-una-mano'],
-  ['Fondos de tríceps en máquina', 'hombre/fondos-triceps-maquina'],
+  ['Fondos de tríceps en máquina', 'fondos-triceps-maquina'],
   ['Extensión de tríceps sobre la cabeza en polea', 'hombre/triceps-sobre-cabeza'],
   ['Press francés con barra Z', 'hombre/press-frances'],
   ['Press de banca con agarre cerrado', 'hombre/press-agarre-cerrado'],
@@ -61,9 +61,9 @@ const SEED_PHOTOS: [exerciseName: string, file: string][] = [
   ['Sentadilla hack', 'hombre/sentadilla-hack'],
   ['Sentadilla búlgara', 'hombre/sentadilla-bulgara'],
   ['Zancadas con mancuernas', 'hombre/zancadas'],
-  ['Curl femoral sentado en máquina', 'hombre/curl-femoral-sentado'],
+  ['Curl femoral sentado en máquina', 'curl-femoral-sentado'],
   ['Peso muerto rumano', 'hombre/peso-muerto-rumano'],
-  ['Curl femoral tumbado', 'curl-femoral-tumbado'],
+  ['Curl femoral tumbado', 'hombre/curl-femoral-tumbado'],
   ['Curl nórdico', 'hombre/curl-nordico'],
   ['Buenos días con barra', 'hombre/buenos-dias'],
   ['Hip thrust en máquina', 'hip-thrust-maquina'],
@@ -72,9 +72,9 @@ const SEED_PHOTOS: [exerciseName: string, file: string][] = [
   ['Patada de glúteo en polea', 'patada-gluteo-polea'],
   ['Subida al cajón con mancuernas', 'hombre/subida-cajon'],
   ['Hiperextensión a 45°', 'hombre/hiperextension'],
-  ['Gemelos en máquina de sentadilla', 'hombre/gemelos-maquina-sentadilla'],
+  ['Gemelos en máquina de sentadilla', 'gemelos-maquina-sentadilla'],
   ['Gemelos en prensa', 'hombre/gemelos-prensa'],
-  ['Gemelos de pie en máquina', 'hombre/gemelos-pie'],
+  ['Gemelos de pie en máquina', 'gemelos-pie'],
   ['Gemelos sentado en máquina', 'hombre/gemelos-sentado'],
   ['Crunch en polea alta', 'crunch-polea'],
   ['Elevación de piernas colgado', 'hombre/elevacion-piernas-colgado'],
