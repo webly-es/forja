@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Trash2 } from 'lucide-react'
+import { ArrowLeft, Sparkles, Trash2 } from 'lucide-react'
 import { db } from '../db/db'
 import { deleteRoutine } from '../db/queries'
 import { getRoutineDraft, saveRoutine } from '../db/routines'
@@ -11,6 +11,7 @@ import { ConfirmDeleteRow } from '../components/ConfirmDeleteRow'
 import { CatalogPicker } from '../components/routines/CatalogPicker'
 import { MuscleBalance } from '../components/routines/MuscleBalance'
 import { SelectedExerciseCard } from '../components/routines/SelectedExerciseCard'
+import { RoutineAnalysisSheet } from '../components/routines/RoutineAnalysisSheet'
 import type { RoutineDraft, RoutineItem } from '../types'
 
 export function RoutineBuilder() {
@@ -26,6 +27,7 @@ export function RoutineBuilder() {
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [analyzing, setAnalyzing] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -144,6 +146,20 @@ export function RoutineBuilder() {
           <span className="text-xs text-text-muted">{items.length}</span>
         </h2>
         <MuscleBalance items={items} exercisesById={exercisesById} />
+        {items.length > 0 && (
+          <button
+            onClick={() => setAnalyzing(true)}
+            className="card-forged flex items-center gap-3 p-3 text-left transition-colors hover:border-accent-muted active:scale-[0.98]"
+          >
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-accent">
+              <Sparkles size={17} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-medium text-text">Analizar con IA</span>
+              <span className="block text-xs text-text-muted">Qué mejorar y cambios a petición</span>
+            </span>
+          </button>
+        )}
         {items.length === 0 ? (
           <p className="rounded-xl border border-dashed border-border py-6 text-center text-sm text-text-muted">
             Añade ejercicios del catálogo de abajo
@@ -192,6 +208,15 @@ export function RoutineBuilder() {
             </button>
           )}
         </div>
+      )}
+
+      {analyzing && (
+        <RoutineAnalysisSheet
+          draft={{ ...draft, items }}
+          exercisesById={exercisesById}
+          onApply={(next) => setItems(() => next)}
+          onClose={() => setAnalyzing(false)}
+        />
       )}
 
       <div className="sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-20 -mx-4 bg-gradient-to-t from-bg via-bg/95 to-transparent px-4 pb-2 pt-4">

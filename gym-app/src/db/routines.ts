@@ -59,3 +59,10 @@ export function saveProgram(drafts: RoutineDraft[]): Promise<number[]> {
     return ids
   })
 }
+
+// Every routine this profile sees, with its exercises, e.g. as context for the coach.
+export async function getRoutineDraftsForProfile(profileId: number): Promise<RoutineDraft[]> {
+  const routines = await getRoutinesForProfile(profileId)
+  const drafts = await Promise.all(routines.map((r) => getRoutineDraft(r.id!)))
+  return drafts.filter((d): d is RoutineDraft => d != null)
+}
