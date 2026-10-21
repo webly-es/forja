@@ -34,7 +34,7 @@ const ROUTINES: { key: string; name: string; format?: RoutineFormat; exercises: 
     name: 'Espalda - Bíceps',
     exercises: [
       { name: 'Jalón al pecho, agarre ancho', muscleGroup: 'Espalda' },
-      { name: 'Jalón al pecho, agarre cerrado', muscleGroup: 'Espalda' },
+      { name: 'Jalón al pecho, agarre neutro', muscleGroup: 'Espalda' },
       { name: 'Remo sentado en máquina', muscleGroup: 'Espalda' },
       {
         name: 'Jalón en máquina de discos',
@@ -125,7 +125,7 @@ const FEMALE_ROUTINES: { key: string; name: string; exerciseNames: string[] }[] 
     key: 'female-day3-pull-glutes',
     name: 'Día 3 - Tirón y Glúteo (Espalda y Bíceps)',
     exerciseNames: [
-      'Jalón al pecho, agarre cerrado',
+      'Jalón al pecho, agarre neutro',
       'Remo sentado en máquina',
       'Curl de bíceps con mancuernas',
       'Curl predicador en máquina',
@@ -186,7 +186,7 @@ const RENAME_MAP: { from: string; to: string }[] = [
   { from: 'Jalón de tríceps con una sola mano', to: 'Extensión de tríceps en polea a una mano' },
   { from: 'Paralelas en máquina para tríceps', to: 'Fondos de tríceps en máquina' },
   { from: 'Máquina de espalda jalando abajo, agarre ancho', to: 'Jalón al pecho, agarre ancho' },
-  { from: 'Máquina de espalda jalando abajo, agarre para dorsales', to: 'Jalón al pecho, agarre cerrado' },
+  { from: 'Máquina de espalda jalando abajo, agarre para dorsales', to: 'Jalón al pecho, agarre neutro' },
   { from: 'Máquina de espalda jalando de frente hacia la espalda', to: 'Remo sentado en máquina' },
   { from: 'Máquina de espalda jalando desde arriba (dorsales y espalda media)', to: 'Jalón en máquina de discos' },
   { from: 'Elevación de mancuernas para bíceps', to: 'Curl de bíceps con mancuernas' },
@@ -200,6 +200,8 @@ const RENAME_MAP: { from: string; to: string }[] = [
   { from: 'Elevación de talones en máquina de sentadillas (Power Squat)', to: 'Gemelos en máquina de sentadilla' },
   { from: 'Elevación de talones en máquina de prensa (Leg Press)', to: 'Gemelos en prensa' },
   { from: 'Extensión de cuádriceps sentado en máquina', to: 'Extensión de cuádriceps en máquina' },
+  // Barra de agarre paralelo (martillo) para dorsales, no un agarre estrecho (2026-10-21).
+  { from: 'Jalón al pecho, agarre cerrado', to: 'Jalón al pecho, agarre neutro' },
 ]
 
 // Extra catalog exercises that aren't part of any default routine, so new

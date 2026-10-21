@@ -20,7 +20,7 @@ const SEED_PHOTOS: [exerciseName: string, file: string][] = [
   ['Fondos en paralelas', 'hombre/fondos-paralelas'],
   ['Fondos en máquina (pectoral bajo)', 'hombre/fondos-paralelas'],
   ['Jalón al pecho, agarre ancho', 'hombre/jalon-maquina-discos'], // same machine; its own photo came out wrong
-  ['Jalón al pecho, agarre cerrado', 'jalon-agarre-cerrado'],
+  ['Jalón al pecho, agarre neutro', 'jalon-agarre-cerrado'],
   ['Remo sentado en máquina', 'hombre/remo-sentado-maquina'],
   ['Remo en máquina agarre martillo', 'hombre/remo-sentado-maquina'], // his own exercise, same machine
   ['Jalón en máquina de discos', 'hombre/jalon-maquina-discos'],
