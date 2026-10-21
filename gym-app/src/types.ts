@@ -152,6 +152,30 @@ export interface WorkoutSession {
   met?: number // undefined = MET_STRENGTH_TRAINING
   ladder?: LadderSetup
   swaps?: ExerciseSwap[] // exercises replaced for this session only
+  notes?: SessionNote[] // mid-workout chat with the session coach
+  adjustments?: SessionAdjustments // changes accepted from the coach, today only
+  skipped?: SkippedExercise[] // exercises left undone, with why
+}
+
+// Why an exercise of the routine wasn't done (told to the coach or picked on finishing).
+export type SkipReason = 'unexpected' | 'time' | 'tired' | 'pain' | 'unmotivated'
+
+export interface SkippedExercise {
+  exerciseId: number
+  reason: SkipReason
+}
+
+export interface SessionNote {
+  at: string // ISO datetime
+  role: 'user' | 'coach'
+  text: string
+}
+
+// Keyed by the exercise id shown on the card (after swaps).
+export interface SessionAdjustments {
+  dropped?: number[] // out of today's workout
+  sets?: Record<number, number> // fewer sets than the routine, today only
+  priority?: number[] // do these first, in this order
 }
 
 export interface ExerciseSwap {

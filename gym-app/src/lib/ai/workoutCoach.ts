@@ -4,6 +4,7 @@ import { GOAL_LABELS, getAge } from '../metrics'
 import { describeExerciseHistory, describeRecentContext } from '../workoutHistory'
 import { generateJson } from './geminiClient'
 import { NO_PERIOD_LABELS, PHASE_LABELS, describeCheckIn } from '../cycle'
+import { describeIncidents } from '../sessionIncidents'
 
 export const REP_RANGES: Record<Goal, { min: number; max: number }> = {
   gain: { min: 6, max: 12 },
@@ -79,9 +80,10 @@ const REVIEW_SCHEMA = {
   required: ['summary', 'highlights', 'exercises'],
 }
 
-export function buildPrompt({ profile, session, exercises, recent, cycle }: SessionHistory): string {
+export function buildPrompt({ profile, session, exercises, recent, cycle, skipped }: SessionHistory): string {
   const range = REP_RANGES[profile.goal]
   const cycleLines = cycle ? describeCycleContext(cycle) : []
+  const incidentLines = describeIncidents(skipped ?? [], session.notes)
   return [
     'Eres un entrenador personal de musculación. Analiza la sesión de hoy comparándola con las anteriores de cada ejercicio.',
     `Persona: ${profile.sex === 'M' ? 'hombre' : 'mujer'}, ${getAge(profile.birthDate)} años, ${profile.weightKg} kg. ` +
@@ -103,6 +105,17 @@ export function buildPrompt({ profile, session, exercises, recent, cycle }: Sess
     'Contexto de los últimos 7 días:',
     describeRecentContext(recent),
     ...(cycleLines.length ? ['', 'Ciclo y estado del día:', ...cycleLines] : []),
+    ...(incidentLines.length
+      ? [
+          '',
+          'Incidencias de la sesión:',
+          ...incidentLines,
+          'Cómo tenerlas en cuenta: un imprevisto o la falta de tiempo no es estancamiento ni se reprocha, y un ejercicio a medias por ese motivo no baja su objetivo (mantén el peso). ' +
+            'El cansancio se matiza con el sueño o la comida si hay datos. Con molestia o dolor, sé prudente con la carga y recuerda consultarlo si persiste. ' +
+            'Si fue por falta de ganas, dilo con franqueza y tacto y propone algo concreto (una sesión más corta o hacer antes ese ejercicio). ' +
+            'Menciónalo en el resumen en una frase; no pongas en exercises los que no hizo.',
+        ]
+      : []),
     '',
     'Datos (peso×repeticiones por serie, de la más reciente a la más antigua):',
     ...exercises.map(describeExerciseHistory),

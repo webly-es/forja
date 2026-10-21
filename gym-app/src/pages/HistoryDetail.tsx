@@ -10,6 +10,7 @@ import { LadderReview } from '../components/ladder/LadderReview'
 import { DetailHero, StatTiles } from '../components/DetailHero'
 import { DeleteWithConfirm } from '../components/DeleteWithConfirm'
 import { formatLoad, loadOf } from '../lib/bodyweight'
+import { SessionIncidents } from '../components/workout/SessionIncidents'
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
@@ -106,6 +107,8 @@ export function HistoryDetail() {
           </div>
         ))}
       </div>
+
+      <SessionIncidents session={session} />
 
       {grouped && grouped.length > 0 && (
         <section className="card-forged p-4">

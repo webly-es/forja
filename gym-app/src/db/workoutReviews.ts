@@ -4,6 +4,7 @@ import { getBalanceSeries, getWeightSeries, type BalanceDay, type SeriesPoint } 
 import { shiftDateKey, toDateKey, todayKey } from '../lib/dates'
 import { getCheckIn, getPeriodLogs } from './cycle'
 import { getCycleStatus, type CycleStatus } from '../lib/cycle'
+import type { SkippedDetail } from '../lib/sessionIncidents'
 import type { CycleCheckIn, Exercise, ExerciseTarget, Profile, SetLog, WorkoutReview, WorkoutSession } from '../types'
 
 const PREVIOUS_SESSIONS = 4
@@ -39,6 +40,7 @@ export interface SessionHistory {
   exercises: ExerciseHistory[]
   recent: RecentContext
   cycle?: CycleContext
+  skipped: SkippedDetail[] // exercises left undone or half done, with why (notes are on session)
 }
 
 export async function getCycleContext(profile: Profile, day: string): Promise<CycleContext | undefined> {
@@ -96,11 +98,16 @@ export async function getSessionHistory(sessionId: number): Promise<SessionHisto
       })),
     })
   }
-  const [recent, cycle] = await Promise.all([
+  const [recent, cycle, skippedExercises] = await Promise.all([
     getRecentContext(session.profileId),
     getCycleContext(profile, toDateKey(new Date(session.startedAt))),
+    db.exercises.bulkGet((session.skipped ?? []).map((s) => s.exerciseId)),
   ])
-  return { session, profile, exercises: result, recent, cycle }
+  const skipped = (session.skipped ?? []).flatMap((s, i) => {
+    const exercise = skippedExercises[i]
+    return exercise ? [{ exercise, reason: s.reason, partial: exerciseIds.includes(s.exerciseId) }] : []
+  })
+  return { session, profile, exercises: result, recent, cycle, skipped }
 }
 
 export function getWorkoutReview(sessionId: number) {
