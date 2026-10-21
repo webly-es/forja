@@ -1,0 +1,4 @@
+# Signed authorship files must stay byte-identical (no line-ending conversion).
+AUTORIA/declaracion.txt -text
+AUTORIA/declaracion.sig -text
+AUTORIA/clave-publica.pem -text
