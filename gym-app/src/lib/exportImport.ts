@@ -18,6 +18,7 @@ interface BackupPayload {
   workoutReviews?: unknown[]
   periodLogs?: unknown[]
   cycleCheckIns?: unknown[]
+  foodMemory?: unknown[]
 }
 
 export async function exportProfileData(profileId: number) {
@@ -35,6 +36,7 @@ export async function exportProfileData(profileId: number) {
     workoutReviews,
     periodLogs,
     cycleCheckIns,
+    foodMemory,
   ] =
     await Promise.all([
       db.profiles.get(profileId),
@@ -50,6 +52,7 @@ export async function exportProfileData(profileId: number) {
       db.workoutReviews.where('profileId').equals(profileId).toArray(),
       db.periodLogs.where('profileId').equals(profileId).toArray(),
       db.cycleCheckIns.where('profileId').equals(profileId).toArray(),
+      db.foodMemory.where('profileId').equals(profileId).toArray(),
     ])
   if (!profile) throw new Error('Perfil no encontrado')
 
@@ -70,6 +73,7 @@ export async function exportProfileData(profileId: number) {
     workoutReviews,
     periodLogs,
     cycleCheckIns,
+    foodMemory,
   }
 
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
@@ -107,6 +111,7 @@ export async function importProfileData(file: File): Promise<number> {
       db.workoutReviews,
       db.periodLogs,
       db.cycleCheckIns,
+      db.foodMemory,
     ],
     async () => {
       const { id: _oldId, ...profileData } = payload.profile
@@ -144,6 +149,7 @@ export async function importProfileData(file: File): Promise<number> {
         [db.machineSettings, payload.machineSettings],
         [db.periodLogs, payload.periodLogs],
         [db.cycleCheckIns, payload.cycleCheckIns],
+        [db.foodMemory, payload.foodMemory],
       ]
       for (const [table, rows] of profileRows) {
         for (const row of (rows ?? []) as Array<Record<string, unknown>>) {

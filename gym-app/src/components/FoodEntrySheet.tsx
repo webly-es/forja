@@ -7,8 +7,9 @@ import { resizeImageToBlob } from '../lib/image'
 import { analyzeFood, type FoodAnalysis } from '../lib/ai/food'
 import { MEAL_LABELS, MEAL_TYPES, mealForHour, type MealType } from '../lib/meals'
 import { ConfirmDeleteRow } from './ConfirmDeleteRow'
-import { numberOrZero, scaleItem, sumItems } from '../lib/foodItems'
-import type { FoodEntry, FoodItem } from '../types'
+import { applyAnswers, numberOrZero, scaleItem, sumItems } from '../lib/foodItems'
+import { getFoodMemory, learnFromEntry } from '../db/foodMemory'
+import type { FoodEntry, FoodItem, FoodQuestion } from '../types'
 
 interface FoodEntrySheetProps {
   profileId: number
@@ -46,7 +47,18 @@ export function FoodEntrySheet({
 
   const [name, setName] = useState(entry?.name ?? initialAnalysis?.dishName ?? '')
   const [meal, setMeal] = useState<MealType>(entry?.meal ?? initialMeal ?? mealForHour(new Date().getHours()))
-  const [items, setItems] = useState<FoodItem[]>(entry?.items ?? initialAnalysis?.items ?? [])
+  // The AI's items and its one-tap questions; what's shown is derived from the answers
+  // until the person edits an item by hand, which takes over from the questions.
+  const [base, setBase] = useState<FoodItem[]>(entry?.items ?? initialAnalysis?.items ?? [])
+  const [questions, setQuestions] = useState<FoodQuestion[]>(initialAnalysis?.questions ?? [])
+  const [answers, setAnswers] = useState<Record<number, number>>({})
+  const [editedItems, setEditedItems] = useState<FoodItem[] | null>(null)
+  const proposed = applyAnswers(base, questions, answers)
+  const items = editedItems ?? proposed
+  const setItems = (update: (prev: FoodItem[]) => FoodItem[]) => setEditedItems(update(items))
+  // Grams are scaled from the item as it was when the field got focus, so typing "1", "12", "120"
+  // (or clearing the field first) doesn't compound rounding or zero the kcal.
+  const gramsFrom = useRef<FoodItem | null>(null)
   const [manual, setManual] = useState({
     kcal: entry && !entry.items ? String(entry.kcal) : '',
     proteinG: entry && !entry.items ? String(entry.proteinG || '') : '',
@@ -92,8 +104,12 @@ export function FoodEntrySheet({
     setError(null)
     try {
       const image = await resizeImageToBlob(photoFile, 1024, 0.8)
-      const result = await analyzeFood({ image, text: note }, geminiApiKey, geminiModel)
-      setItems(result.items)
+      const memory = await getFoodMemory(profileId)
+      const result = await analyzeFood({ image, text: note }, geminiApiKey, geminiModel, undefined, memory)
+      setBase(result.items)
+      setQuestions(result.questions)
+      setAnswers({})
+      setEditedItems(null)
       if (!name.trim()) setName(result.dishName)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo analizar la foto.')
@@ -103,7 +119,8 @@ export function FoodEntrySheet({
   }
 
   function updateItem(index: number, patch: Partial<FoodItem>) {
-    setItems((prev) => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)))
+    // A hand-corrected item is reviewed: it no longer needs the "Revisa" label.
+    setItems((prev) => prev.map((item, i) => (i === index ? { ...item, ...patch, confidence: undefined } : item)))
   }
 
   const totals = usesItems
@@ -130,6 +147,8 @@ export function FoodEntrySheet({
       fatG: Math.round(totals.fatG),
       photo: thumbnail,
     }
+    // Learn the foods as the person left them (new AI meals, or AI meals they edited).
+    if (usesItems && (!entry || editedItems)) await learnFromEntry(profileId, items, proposed)
     if (entry?.id != null) {
       await db.foodEntries.update(entry.id, data)
     } else {
@@ -235,11 +254,41 @@ export function FoodEntrySheet({
 
             {error && <p className="text-xs text-danger">{error}</p>}
 
+            {questions.length > 0 && !editedItems && (
+              <div className="flex flex-col gap-3 rounded-xl border border-accent-muted bg-accent-muted/20 p-3">
+                <span className="text-[11px] font-medium uppercase tracking-wide text-accent">Para afinar</span>
+                {questions.map((q, qi) => (
+                  <div key={qi}>
+                    <p className="mb-1.5 text-sm text-text">{q.text}</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {q.options.map((o, oi) => (
+                        <button
+                          key={oi}
+                          type="button"
+                          onClick={() => setAnswers((prev) => ({ ...prev, [qi]: oi }))}
+                          className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                            (answers[qi] ?? 0) === oi
+                              ? 'border-accent bg-accent/15 text-accent'
+                              : 'border-border bg-surface-2 text-text-muted hover:text-text'
+                          }`}
+                        >
+                          {o.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {items.length > 0 && (
               <div className="flex flex-col gap-2">
                 <div className="text-xs uppercase tracking-wide text-text-muted">Alimentos (puedes corregirlos)</div>
                 {items.map((item, i) => (
-                  <div key={i} className="rounded-lg border border-border bg-surface-2 p-3">
+                  <div
+                    key={i}
+                    className={`rounded-lg border bg-surface-2 p-3 ${item.confidence === 'low' ? 'border-accent-muted' : 'border-border'}`}
+                  >
                     <div className="flex items-center gap-2">
                       <input
                         type="text"
@@ -247,6 +296,11 @@ export function FoodEntrySheet({
                         onChange={(e) => updateItem(i, { name: e.target.value })}
                         className="min-w-0 flex-1 bg-transparent text-sm text-text outline-none"
                       />
+                      {item.confidence === 'low' && (
+                        <span className="shrink-0 rounded-full bg-accent/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-accent">
+                          Revisa
+                        </span>
+                      )}
                       <button
                         onClick={() => setItems((prev) => prev.filter((_, j) => j !== i))}
                         className="text-text-muted hover:text-text"
@@ -255,6 +309,7 @@ export function FoodEntrySheet({
                         <X size={16} />
                       </button>
                     </div>
+                    {item.note && <p className="mt-0.5 text-[11px] leading-snug text-text-muted">{item.note}</p>}
                     <div className="mt-2 grid grid-cols-3 gap-2">
                       <label className="flex flex-col gap-0.5 text-[11px] text-text-muted">
                         Gramos
@@ -262,11 +317,14 @@ export function FoodEntrySheet({
                           type="number"
                           inputMode="decimal"
                           value={item.grams || ''}
-                          onChange={(e) =>
+                          onFocus={() => (gramsFrom.current = item)}
+                          onBlur={() => (gramsFrom.current = null)}
+                          onChange={(e) => {
+                            const from = gramsFrom.current ?? item
                             setItems((prev) =>
-                              prev.map((it, j) => (j === i ? scaleItem(it, numberOrZero(e.target.value)) : it)),
+                              prev.map((it, j) => (j === i ? { ...scaleItem(from, numberOrZero(e.target.value)), confidence: undefined } : it)),
                             )
-                          }
+                          }}
                           className="input !py-1.5 text-sm"
                         />
                       </label>

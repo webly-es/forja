@@ -225,7 +225,7 @@ export function Nutrition() {
       />
 
       <section>
-        <FoodComposer onAnalyzed={(analysis, photo, note) => setSheet({ mode: 'photo', analysis, photo, note })} />
+        <FoodComposer profileId={profile.id!} onAnalyzed={(analysis, photo, note) => setSheet({ mode: 'photo', analysis, photo, note })} />
         <div className="mt-3 flex items-center justify-center gap-6">
           <button onClick={() => setShowRecent((v) => !v)} className={linkButton}>
             <RotateCcw size={13} />

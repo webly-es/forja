@@ -19,6 +19,7 @@ import type {
   PeriodLog,
   CycleCheckIn,
   TrainingReport,
+  FoodMemory,
 } from '../types'
 
 export const db = new Dexie('gym-app') as Dexie & {
@@ -41,6 +42,7 @@ export const db = new Dexie('gym-app') as Dexie & {
   periodLogs: EntityTable<PeriodLog, 'id'>
   cycleCheckIns: EntityTable<CycleCheckIn, 'id'>
   trainingReports: EntityTable<TrainingReport, 'id'>
+  foodMemory: EntityTable<FoodMemory, 'id'>
 }
 
 db.version(1).stores({
@@ -201,4 +203,8 @@ db.version(9).stores({
 // Only the new table: Dexie keeps every table of the previous version.
 db.version(10).stores({
   trainingReports: '++id, profileId',
+})
+
+db.version(11).stores({
+  foodMemory: '++id, &[profileId+key], profileId',
 })

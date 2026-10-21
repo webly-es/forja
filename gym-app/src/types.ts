@@ -228,6 +228,8 @@ export interface SeedTombstone {
   key: string
 }
 
+export type FoodConfidence = 'high' | 'medium' | 'low'
+
 export interface FoodItem {
   name: string
   grams: number
@@ -235,6 +237,34 @@ export interface FoodItem {
   proteinG: number
   carbsG: number
   fatG: number
+  confidence?: FoodConfidence // how sure the AI is about this item
+  note?: string // e.g. "incluye ~10 g de aceite" or "según tus correcciones"
+}
+
+// A one-tap question the AI asks when an answer would change the result noticeably.
+// Each option carries its effect, precomputed by the AI, so answering needs no new call.
+export interface FoodQuestionOption {
+  label: string
+  scale?: { item: number; factor: number }[] // item = index in the analysis items
+  add?: FoodItem[]
+}
+
+export interface FoodQuestion {
+  text: string
+  options: FoodQuestionOption[]
+}
+
+// What the app has learned about a food the person logs, per profile.
+export interface FoodMemory {
+  id?: number
+  profileId: number
+  key: string // normalized name
+  name: string
+  grams: number // usual portion
+  per100: { kcal: number; proteinG: number; carbsG: number; fatG: number }
+  uses: number
+  corrected: boolean // the person changed what the AI said at least once
+  updatedAt: string
 }
 
 export interface FoodEntry {

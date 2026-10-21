@@ -165,6 +165,7 @@ export async function deleteProfile(profileId: number) {
       db.routines,
       db.routineExercises,
       db.trainingReports,
+      db.foodMemory,
     ],
     async () => {
       const owned = (await db.routines.toArray()).filter((r) => r.profileId === profileId).map((r) => r.id!)
@@ -177,6 +178,7 @@ export async function deleteProfile(profileId: number) {
       await db.sets.where('profileId').equals(profileId).delete()
       await db.cardioSessions.where('profileId').equals(profileId).delete()
       await db.foodEntries.where('profileId').equals(profileId).delete()
+      await db.foodMemory.where('profileId').equals(profileId).delete()
       await db.dailySteps.where('profileId').equals(profileId).delete()
       await db.machineSettings.where('profileId').equals(profileId).delete()
       await db.workoutReviews.where('profileId').equals(profileId).delete()
