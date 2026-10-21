@@ -23,3 +23,7 @@ Se despliega automáticamente a GitHub Pages vía GitHub Actions en cada push a 
 ## Datos
 
 Todos los datos viven en el navegador (IndexedDB). Usa **Ajustes → Exportar mis datos** para hacer un backup en JSON, e **Importar backup** para restaurarlo (por ejemplo al cambiar de dispositivo o navegador).
+
+## Licencia
+
+© 2026 Jonathan Suárez. Todos los derechos reservados. Ver [LICENSE](../LICENSE) y la acreditación de autoría en [AUTORIA](../AUTORIA).

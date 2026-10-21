@@ -1,0 +1,8 @@
+Forja - declaracion de autoria
+Autor y titular de los derechos: Jonathan Suarez
+Obra: aplicacion Forja (codigo fuente, diseno e imagenes) publicada en https://github.com/webly-es/forja
+Desarrollo desde: 2026-07-20 (primer commit db9ac89b8e83c92f417f1425633c051411a2aee1)
+Estado del codigo firmado: commit e8fa86fb3d46340374ee7179f14753d0778c6ad9
+Fecha de la firma: 2026-10-21
+Todos los derechos reservados.
+Huella de la clave publica (SHA-256): 182f589eb21b270026b37cead1bddbea885950e93a0b22306b3047746aee3d79
