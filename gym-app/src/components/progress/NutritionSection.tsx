@@ -2,7 +2,8 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { getBalanceSeries } from '../../db/progress'
 import { shiftDateKey, todayKey } from '../../lib/dates'
 import { BalanceBars } from '../charts/BalanceBars'
-import { EmptyHint, ProgressSection, shortDate } from './shared'
+import { EmptyHint, ProgressSection } from './shared'
+import { shortDate } from '../../lib/format'
 
 const DAYS = 14
 

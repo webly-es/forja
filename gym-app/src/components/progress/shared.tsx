@@ -1,14 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { ChevronDown } from 'lucide-react'
 import type { SeriesPoint } from '../../db/progress'
-
-// "14 oct" from a yyyy-mm-dd key or an ISO datetime, in local time.
-export function shortDate(date: string, withYear = false): string {
-  const d = date.length === 10 ? new Date(`${date}T00:00:00`) : new Date(date)
-  return d.toLocaleDateString('es', { day: 'numeric', month: 'short', ...(withYear ? { year: 'numeric' } : {}) })
-}
-
-export const fmtNumber = (n: number) => n.toLocaleString('es', { maximumFractionDigits: 1 })
+import { fmtNumber, shortDate } from '../../lib/format'
 
 export function ProgressSection({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
   return (

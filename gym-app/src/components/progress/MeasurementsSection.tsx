@@ -4,7 +4,8 @@ import { Plus } from 'lucide-react'
 import { getMeasurementSeries, logMeasurements } from '../../db/progress'
 import { MEASUREMENT_LABELS, MEASUREMENT_TYPES, type MeasurementType } from '../../lib/measurements'
 import { TrendChart } from '../charts/TrendChart'
-import { EmptyHint, HeadlineValue, ProgressSection, RecordsDisclosure, shortDate } from './shared'
+import { EmptyHint, HeadlineValue, ProgressSection, RecordsDisclosure } from './shared'
+import { shortDate } from '../../lib/format'
 
 export function MeasurementsSection({ profileId }: { profileId: number }) {
   const [type, setType] = useState<MeasurementType>('waist')

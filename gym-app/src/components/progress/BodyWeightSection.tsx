@@ -7,7 +7,8 @@ import { expectsWaterRetention } from '../../lib/cycle'
 import { todayKey } from '../../lib/dates'
 import type { Goal } from '../../types'
 import { TrendChart } from '../charts/TrendChart'
-import { EmptyHint, HeadlineValue, ProgressSection, RecordsDisclosure, shortDate } from './shared'
+import { EmptyHint, HeadlineValue, ProgressSection, RecordsDisclosure } from './shared'
+import { shortDate } from '../../lib/format'
 
 const WEIGHT_PROGRESS: Record<Goal, 'up' | 'down' | 'none'> = { lose: 'down', gain: 'up', recomp: 'none', maintain: 'none' }
 

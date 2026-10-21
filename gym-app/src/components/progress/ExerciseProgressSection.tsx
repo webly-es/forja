@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { getExerciseProgression, getTrainedExercises } from '../../db/progress'
 import { TrendChart } from '../charts/TrendChart'
-import { EmptyHint, HeadlineValue, ProgressSection, RecordsDisclosure, shortDate } from './shared'
+import { EmptyHint, HeadlineValue, ProgressSection, RecordsDisclosure } from './shared'
+import { shortDate } from '../../lib/format'
 
 type Metric = 'topWeight' | 'oneRepMax'
 

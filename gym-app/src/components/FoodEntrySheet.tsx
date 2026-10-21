@@ -7,6 +7,7 @@ import { resizeImageToBlob } from '../lib/image'
 import { analyzeFood, type FoodAnalysis } from '../lib/ai/food'
 import { MEAL_LABELS, MEAL_TYPES, mealForHour, type MealType } from '../lib/meals'
 import { ConfirmDeleteRow } from './ConfirmDeleteRow'
+import { numberOrZero, scaleItem, sumItems } from '../lib/foodItems'
 import type { FoodEntry, FoodItem } from '../types'
 
 interface FoodEntrySheetProps {
@@ -21,38 +22,6 @@ interface FoodEntrySheetProps {
   // Meal preselected when adding from an empty meal card.
   initialMeal?: MealType
   onClose: () => void
-}
-
-function sumItems(items: FoodItem[]) {
-  return items.reduce(
-    (acc, i) => ({
-      kcal: acc.kcal + i.kcal,
-      proteinG: acc.proteinG + i.proteinG,
-      carbsG: acc.carbsG + i.carbsG,
-      fatG: acc.fatG + i.fatG,
-    }),
-    { kcal: 0, proteinG: 0, carbsG: 0, fatG: 0 },
-  )
-}
-
-// Changing an item's grams scales its kcal/macros proportionally, since the
-// AI's per-gram estimate is usually better than its portion estimate.
-function scaleItem(item: FoodItem, grams: number): FoodItem {
-  if (item.grams <= 0) return { ...item, grams }
-  const f = grams / item.grams
-  return {
-    ...item,
-    grams,
-    kcal: Math.round(item.kcal * f),
-    proteinG: Math.round(item.proteinG * f),
-    carbsG: Math.round(item.carbsG * f),
-    fatG: Math.round(item.fatG * f),
-  }
-}
-
-function numberOrZero(raw: string): number {
-  const n = Number(raw)
-  return Number.isFinite(n) && n > 0 ? n : 0
 }
 
 export function FoodEntrySheet({

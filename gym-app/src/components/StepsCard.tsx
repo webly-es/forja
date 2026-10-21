@@ -28,7 +28,10 @@ function titleFor(dateKey: string): string {
 
 export function StepsCard({ profile, dateKey, steps, stepsKcal, onSelectDate }: StepsCardProps) {
   const stepGoal = useAppStore((s) => s.stepGoal)
-  const [editing, setEditing] = useState(false)
+  // The day being edited: switching to another day leaves edit mode without an effect.
+  const [editingDate, setEditingDate] = useState<string | null>(null)
+  const editing = editingDate === dateKey
+  const setEditing = (on: boolean) => setEditingDate(on ? dateKey : null)
   const [draft, setDraft] = useState('')
   const [status, setStatus] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -50,10 +53,6 @@ export function StepsCard({ profile, dateKey, steps, stepsKcal, onSelectDate }: 
     },
     [profile.id, chartEnd],
   )
-
-  useEffect(() => {
-    setEditing(false)
-  }, [dateKey])
 
   useEffect(() => {
     if (editing) inputRef.current?.focus()
