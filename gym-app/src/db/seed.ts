@@ -218,6 +218,7 @@ const CATALOG: SeedExercise[] = [
   { name: 'Remo con mancuerna a una mano', muscleGroup: 'Espalda' },
   { name: 'Remo sentado en polea', muscleGroup: 'Espalda' },
   { name: 'Remo con pecho apoyado', muscleGroup: 'Espalda' },
+  { name: 'Remo en máquina, agarre ancho horizontal', muscleGroup: 'Espalda' },
   { name: 'Pullover en polea alta', muscleGroup: 'Espalda' },
   { name: 'Peso muerto', muscleGroup: 'Espalda' },
   { name: 'Press militar con barra', muscleGroup: 'Hombro' },
