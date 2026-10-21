@@ -4,6 +4,8 @@
 const API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
 const GENERATE_TIMEOUT_MS = 20_000
+// Photos and voice notes take longer to upload and process than plain text.
+const MEDIA_TIMEOUT_MS = 45_000
 // Fast, reliable fallback when the configured model is overloaded or too slow.
 const FALLBACK_MODEL = 'gemini-flash-lite-latest'
 
@@ -63,17 +65,18 @@ async function request(path: string, apiKey: string, init?: RequestInit): Promis
   }
 }
 
-// One generation attempt, abandoned after GENERATE_TIMEOUT_MS or when the caller cancels.
+// One generation attempt, abandoned after timeoutMs or when the caller cancels.
 async function generate(
   model: string,
   apiKey: string,
   body: Record<string, unknown>,
+  timeoutMs: number,
   signal?: AbortSignal,
 ): Promise<Response> {
   const controller = new AbortController()
   const onCancel = () => controller.abort()
   signal?.addEventListener('abort', onCancel)
-  const timer = window.setTimeout(() => controller.abort(), GENERATE_TIMEOUT_MS)
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs)
   try {
     const response = await request(`models/${encodeURIComponent(model)}:generateContent`, apiKey, {
       method: 'POST',
@@ -114,24 +117,41 @@ export async function generateJson<T>(
 ): Promise<T> {
   if (!apiKey) throw new Error('Falta la clave de Gemini. Añádela en Ajustes.')
 
+  const hasMedia = parts.some((p) => 'inlineData' in p)
+  const timeoutMs = hasMedia ? MEDIA_TIMEOUT_MS : GENERATE_TIMEOUT_MS
   const body = {
     contents: [{ role: 'user', parts }],
     generationConfig: { responseMimeType: 'application/json', responseJsonSchema: schema },
     store: false,
   }
-  // The lite model accepts (and is fastest with) minimal thinking; flash rejects it with 400.
+  // Gemini 3.x thinks at medium/high and reads images at full resolution by default, which with a
+  // photo or voice note can take longer than the timeout. Reading a plate or a short note needs
+  // neither: low thinking (supported by every current Flash model) and medium image resolution.
+  const primaryBody = hasMedia
+    ? {
+        ...body,
+        generationConfig: { ...body.generationConfig, thinkingConfig: { thinkingLevel: 'low' }, mediaResolution: 'MEDIA_RESOLUTION_MEDIUM' },
+      }
+    : body
+  // The lite model accepts (and is fastest with) minimal thinking.
   const fallbackBody = {
     ...body,
     generationConfig: { ...body.generationConfig, thinkingConfig: { thinkingLevel: 'minimal' } },
   }
 
+  // A model that rejects one of the tuning options (400) gets the plain request instead.
+  const attempt = async (target: string, tuned: Record<string, unknown>) => {
+    const response = await generate(target, apiKey, tuned, timeoutMs, signal)
+    return response.status === 400 && tuned !== body ? generate(target, apiKey, body, timeoutMs, signal) : response
+  }
+
   // An overloaded or slow model goes straight to the lite model instead of leaving the user waiting.
-  let response = await generate(model, apiKey, body, signal).catch((err) => {
+  let response = await attempt(model, primaryBody).catch((err) => {
     if (err instanceof SlowModelError && model !== FALLBACK_MODEL) return null
     throw err
   })
   if (!response || (model !== FALLBACK_MODEL && (response.status === 503 || response.status === 500))) {
-    response = await generate(FALLBACK_MODEL, apiKey, fallbackBody, signal)
+    response = await attempt(FALLBACK_MODEL, fallbackBody)
   }
   if (!response.ok) throw new Error(await readErrorMessage(response))
 
