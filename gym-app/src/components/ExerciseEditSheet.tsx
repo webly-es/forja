@@ -7,6 +7,7 @@ import { deleteExerciseTargetsForExercise } from '../db/workoutReviews'
 import { addSeedTombstone, tombstoneKeys } from '../db/seedTombstones'
 import { resizeImageToBlob } from '../lib/image'
 import { MUSCLE_GROUPS, type MuscleGroup } from '../lib/muscleGroups'
+import { BODYWEIGHT_PRESETS } from '../lib/bodyweight'
 import { ExercisePhoto } from './ExercisePhoto'
 import { ConfirmDeleteRow } from './ConfirmDeleteRow'
 import type { Exercise } from '../types'
@@ -19,6 +20,11 @@ interface ExerciseEditSheetProps {
 export function ExerciseEditSheet({ exercise, onClose }: ExerciseEditSheetProps) {
   const [name, setName] = useState(exercise?.name ?? '')
   const [muscleGroup, setMuscleGroup] = useState<MuscleGroup | ''>(exercise?.muscleGroup ?? '')
+  // 0 = not bodyweight. Seeded factors (e.g. 0.64) that aren't a preset stay selectable as they are.
+  const [bodyweightFactor, setBodyweightFactor] = useState(exercise?.bodyweightFactor ?? 0)
+  const bodyweightOptions = BODYWEIGHT_PRESETS.some((p) => p.factor === bodyweightFactor) || bodyweightFactor === 0
+    ? BODYWEIGHT_PRESETS
+    : [{ factor: bodyweightFactor, label: `Un ${Math.round(bodyweightFactor * 100)} % del peso` }, ...BODYWEIGHT_PRESETS]
   const [confirmingDeleteExercise, setConfirmingDeleteExercise] = useState(false)
   const [confirmingDeletePhoto, setConfirmingDeletePhoto] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -45,10 +51,17 @@ export function ExerciseEditSheet({ exercise, onClose }: ExerciseEditSheetProps)
     if (!canSave) return
     const group = muscleGroup as MuscleGroup
     if (exercise) {
-      await db.exercises.update(exercise.id!, { name: name.trim(), muscleGroup: group })
+      // An explicit 0 keeps the seed from flagging it again; untouched normal exercises stay undefined.
+      const factor = bodyweightFactor > 0 || exercise.bodyweightFactor !== undefined ? bodyweightFactor : undefined
+      await db.exercises.update(exercise.id!, { name: name.trim(), muscleGroup: group, bodyweightFactor: factor })
     } else {
       const count = await db.exercises.count()
-      await db.exercises.add({ name: name.trim(), muscleGroup: group, order: count })
+      await db.exercises.add({
+        name: name.trim(),
+        muscleGroup: group,
+        order: count,
+        bodyweightFactor: bodyweightFactor > 0 ? bodyweightFactor : undefined,
+      })
     }
     onClose()
   }
@@ -161,6 +174,26 @@ export function ExerciseEditSheet({ exercise, onClose }: ExerciseEditSheetProps)
                 </option>
               ))}
             </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs uppercase tracking-wide text-text-muted">Peso corporal</label>
+            <select
+              value={bodyweightFactor}
+              onChange={(e) => setBodyweightFactor(Number(e.target.value))}
+              className="input"
+            >
+              <option value={0}>No, se hace con carga</option>
+              {bodyweightOptions.map((p) => (
+                <option key={p.factor} value={p.factor}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+            {bodyweightFactor > 0 && (
+              <p className="mt-1.5 text-xs leading-relaxed text-text-muted">
+                Al entrenar apuntas solo el lastre (vacío si no llevas). Tu peso corporal se suma para récords, gráficas y el entrenador.
+              </p>
+            )}
           </div>
         </div>
 

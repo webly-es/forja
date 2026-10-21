@@ -9,6 +9,7 @@ import { WorkoutReview } from '../components/WorkoutReview'
 import { LadderReview } from '../components/ladder/LadderReview'
 import { DetailHero, StatTiles } from '../components/DetailHero'
 import { DeleteWithConfirm } from '../components/DeleteWithConfirm'
+import { formatLoad, loadOf } from '../lib/bodyweight'
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
@@ -50,7 +51,7 @@ export function HistoryDetail() {
   const minutes = session.finishedAt
     ? Math.round((Date.parse(session.finishedAt) - Date.parse(session.startedAt)) / 60000)
     : 0
-  const volume = allSets.reduce((sum, s) => sum + s.weightKg * s.reps, 0)
+  const volume = allSets.reduce((sum, s) => sum + loadOf(s) * s.reps, 0)
 
   async function handleDelete() {
     await deleteWorkoutSession(id)
@@ -97,7 +98,7 @@ export function HistoryDetail() {
                     onClick={() => setEditingSetId(s.id!)}
                     className="rounded-md border border-accent-muted bg-accent-muted/30 px-2 py-1 text-xs tabular-nums text-text"
                   >
-                    {kg(s.weightKg)} kg × {s.reps}
+                    {formatLoad(s)} × {s.reps}
                   </button>
                 ),
               )}

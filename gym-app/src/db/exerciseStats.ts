@@ -1,9 +1,10 @@
 import { db } from './db'
 import { filterSetsFromFinishedSessions } from './queries'
 import type { MachineSetting, SetLog } from '../types'
+import { loadOf } from '../lib/bodyweight'
 
 export interface ExerciseStats {
-  best?: SetLog // heaviest set, ties broken by reps (same rule as getBestSetForExercise)
+  best?: SetLog // heaviest set (body share included), ties broken by reps (same rule as getBestSetForExercise)
   machine?: MachineSetting
 }
 
@@ -19,7 +20,7 @@ export async function getExerciseStats(profileId: number): Promise<Map<number, E
   for (const set of sets) {
     const entry = stats.get(set.exerciseId) ?? {}
     const best = entry.best
-    if (!best || set.weightKg > best.weightKg || (set.weightKg === best.weightKg && set.reps > best.reps)) {
+    if (!best || loadOf(set) > loadOf(best) || (loadOf(set) === loadOf(best) && set.reps > best.reps)) {
       entry.best = set
     }
     stats.set(set.exerciseId, entry)

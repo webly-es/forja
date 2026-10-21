@@ -1,4 +1,5 @@
 import type { SetLog } from '../types'
+import { formatSetForAi, loadOf } from './bodyweight'
 import type { ExerciseHistory, RecentContext } from '../db/workoutReviews'
 
 // Epley estimate of the one-rep max, the usual way to compare sets with different reps.
@@ -7,11 +8,11 @@ export function estimateOneRepMax(weightKg: number, reps: number): number {
 }
 
 export function bestOneRepMax(sets: SetLog[]): number {
-  return sets.reduce((best, s) => Math.max(best, estimateOneRepMax(s.weightKg, s.reps)), 0)
+  return sets.reduce((best, s) => Math.max(best, estimateOneRepMax(loadOf(s), s.reps)), 0)
 }
 
 export function totalVolume(sets: SetLog[]): number {
-  return sets.reduce((sum, s) => sum + s.weightKg * s.reps, 0)
+  return sets.reduce((sum, s) => sum + loadOf(s) * s.reps, 0)
 }
 
 // How many of the latest sessions (today included) failed to beat every session before them.
@@ -29,7 +30,7 @@ export function sessionsWithoutImprovement(history: ExerciseHistory): number {
 const kg = (n: number) => n.toLocaleString('es', { maximumFractionDigits: 1 })
 
 function formatSets(sets: SetLog[]): string {
-  return sets.map((s) => `${kg(s.weightKg)}×${s.reps}`).join(', ')
+  return sets.map(formatSetForAi).join(', ')
 }
 
 function shortDate(iso: string): string {
@@ -42,8 +43,15 @@ export function describeExerciseHistory(history: ExerciseHistory): string {
   const todayVolume = totalVolume(history.today)
   const pastVolumes = history.previous.map((p) => totalVolume(p.sets))
   const avgPastVolume = pastVolumes.length ? pastVolumes.reduce((a, b) => a + b, 0) / pastVolumes.length : 0
+  const bodyKg = history.today.find((s) => s.bodyKg != null)?.bodyKg
   const lines = [
     `[id ${history.exercise.id}] ${history.exercise.name} (${history.exercise.muscleGroup})`,
+    ...(bodyKg != null
+      ? [
+          `  Ejercicio de peso corporal: cada repetición mueve unos ${kg(bodyKg)} kg de su cuerpo (PC). ` +
+            'Los kg tras "PC+" son lastre añadido; volumen y 1RM ya incluyen el cuerpo.',
+        ]
+      : []),
     `  Hoy: ${formatSets(history.today)}`,
     ...history.previous.map((p) => `  ${shortDate(p.date)}: ${formatSets(p.sets)}`),
   ]

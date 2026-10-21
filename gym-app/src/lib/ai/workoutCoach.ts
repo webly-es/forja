@@ -92,6 +92,8 @@ export function buildPrompt({ profile, session, exercises, recent, cycle }: Sess
     '- Si no, mantén el peso y propone una o dos repeticiones más que la mejor serie de hoy, sin pasar del tope del rango.',
     '- Si lleva 2 o más sesiones sin superar su mejor marca o hoy rindió claramente peor, mantén o baja un poco el peso y dilo con tacto (descanso, sueño, comida).',
     '- Si es la primera vez, usa trend "new" y propone repetir el peso de hoy buscando completar el rango.',
+    'Ejercicios de peso corporal (series con "PC"): nextWeightKg es el lastre, 0 si va sin lastre. Progresa primero en repeticiones; ' +
+      'cuando pase del tope del rango, añade 2,5 kg de lastre. Si sin lastre no llega al mínimo del rango, propone 0 kg y las repeticiones que pueda hacer bien, y sugiere negativas o una variante más fácil en el comentario.',
     'trend: "up" si hoy mejoró, "flat" si igual, "down" si empeoró, "new" si no hay historial.',
     'nextWeightKg y nextReps son el objetivo de la primera serie efectiva de la próxima sesión.',
     'Usa los exerciseId exactos de la lista.',

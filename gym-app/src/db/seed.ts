@@ -8,6 +8,7 @@ import { moveExerciseTargets } from './workoutReviews'
 interface SeedExercise {
   name: string
   muscleGroup: MuscleGroup
+  bodyweightFactor?: number // see Exercise.bodyweightFactor
 }
 
 const ROUTINES: { key: string; name: string; format?: RoutineFormat; exercises: SeedExercise[] }[] = [
@@ -208,9 +209,9 @@ const CATALOG: SeedExercise[] = [
   { name: 'Press de banca con barra', muscleGroup: 'Pecho' },
   { name: 'Press de banca con mancuernas', muscleGroup: 'Pecho' },
   { name: 'Cruce de poleas', muscleGroup: 'Pecho' },
-  { name: 'Fondos en paralelas', muscleGroup: 'Pecho' },
+  { name: 'Fondos en paralelas', muscleGroup: 'Pecho', bodyweightFactor: 0.95 },
   { name: 'Fondos en máquina (pectoral bajo)', muscleGroup: 'Pecho' },
-  { name: 'Dominadas', muscleGroup: 'Espalda' },
+  { name: 'Dominadas', muscleGroup: 'Espalda', bodyweightFactor: 1 },
   { name: 'Remo con barra', muscleGroup: 'Espalda' },
   { name: 'Remo con mancuerna a una mano', muscleGroup: 'Espalda' },
   { name: 'Remo sentado en polea', muscleGroup: 'Espalda' },
@@ -241,14 +242,43 @@ const CATALOG: SeedExercise[] = [
   { name: 'Hip thrust con barra', muscleGroup: 'Glúteos' },
   { name: 'Patada de glúteo en polea', muscleGroup: 'Glúteos' },
   { name: 'Subida al cajón con mancuernas', muscleGroup: 'Glúteos' },
-  { name: 'Hiperextensión a 45°', muscleGroup: 'Glúteos' },
+  { name: 'Hiperextensión a 45°', muscleGroup: 'Glúteos', bodyweightFactor: 0.5 },
   { name: 'Gemelos de pie en máquina', muscleGroup: 'Gemelos' },
   { name: 'Gemelos sentado en máquina', muscleGroup: 'Gemelos' },
   { name: 'Crunch en polea alta', muscleGroup: 'Abdomen' },
-  { name: 'Elevación de piernas colgado', muscleGroup: 'Abdomen' },
+  { name: 'Elevación de piernas colgado', muscleGroup: 'Abdomen', bodyweightFactor: 0.35 },
   { name: 'Plancha', muscleGroup: 'Abdomen' },
   { name: 'Rueda abdominal', muscleGroup: 'Abdomen' },
   { name: 'Pallof press en polea', muscleGroup: 'Abdomen' },
+
+  // Bodyweight classics (2026-10-21). The factor is the share of body weight each rep moves,
+  // so the coach can reason with body weight plus any added weight.
+  { name: 'Flexiones', muscleGroup: 'Pecho', bodyweightFactor: 0.64 },
+  { name: 'Flexiones con rodillas apoyadas', muscleGroup: 'Pecho', bodyweightFactor: 0.49 },
+  { name: 'Flexiones inclinadas (manos en banco)', muscleGroup: 'Pecho', bodyweightFactor: 0.41 },
+  { name: 'Flexiones declinadas (pies elevados)', muscleGroup: 'Pecho', bodyweightFactor: 0.7 },
+  { name: 'Flexiones abiertas', muscleGroup: 'Pecho', bodyweightFactor: 0.64 },
+  { name: 'Flexiones arqueras', muscleGroup: 'Pecho', bodyweightFactor: 0.75 },
+  { name: 'Flexiones diamante', muscleGroup: 'Tríceps', bodyweightFactor: 0.64 },
+  { name: 'Flexiones cerradas', muscleGroup: 'Tríceps', bodyweightFactor: 0.64 },
+  { name: 'Fondos en banco', muscleGroup: 'Tríceps', bodyweightFactor: 0.6 },
+  { name: 'Flexiones pike', muscleGroup: 'Hombro', bodyweightFactor: 0.7 },
+  { name: 'Dominadas supinas', muscleGroup: 'Espalda', bodyweightFactor: 1 },
+  { name: 'Dominadas agarre neutro', muscleGroup: 'Espalda', bodyweightFactor: 1 },
+  { name: 'Dominadas agarre ancho', muscleGroup: 'Espalda', bodyweightFactor: 1 },
+  { name: 'Dominadas agarre cerrado', muscleGroup: 'Espalda', bodyweightFactor: 1 },
+  { name: 'Dominadas negativas', muscleGroup: 'Espalda', bodyweightFactor: 1 },
+  { name: 'Dominadas arqueras', muscleGroup: 'Espalda', bodyweightFactor: 1 },
+  { name: 'Muscle-up', muscleGroup: 'Espalda', bodyweightFactor: 1 },
+  { name: 'Remo australiano (dominada invertida)', muscleGroup: 'Espalda', bodyweightFactor: 0.6 },
+  { name: 'Crunch abdominal', muscleGroup: 'Abdomen', bodyweightFactor: 0.3 },
+  { name: 'Crunch inverso', muscleGroup: 'Abdomen', bodyweightFactor: 0.3 },
+  { name: 'Crunch bicicleta', muscleGroup: 'Abdomen', bodyweightFactor: 0.3 },
+  { name: 'Crunch con piernas a 90°', muscleGroup: 'Abdomen', bodyweightFactor: 0.3 },
+  { name: 'Crunch oblicuo', muscleGroup: 'Abdomen', bodyweightFactor: 0.3 },
+  { name: 'Abdominal en V', muscleGroup: 'Abdomen', bodyweightFactor: 0.4 },
+  { name: 'Elevación de rodillas colgado', muscleGroup: 'Abdomen', bodyweightFactor: 0.3 },
+  { name: 'Toes to bar', muscleGroup: 'Abdomen', bodyweightFactor: 0.35 },
 ]
 
 // Renames `from` to `to`, or merges it into an existing `to`, carrying over
@@ -358,8 +388,13 @@ export async function ensureExercisesSeeded() {
 
     for (const ex of CATALOG) {
       if (await isSeedTombstoned(tombstoneKeys.exercise(ex.name))) continue
-      if (await db.exercises.where('name').equals(ex.name).first()) continue
-      await db.exercises.add({ name: ex.name, muscleGroup: ex.muscleGroup, order: 0 })
+      const existing = await db.exercises.where('name').equals(ex.name).first()
+      if (!existing) {
+        await db.exercises.add({ name: ex.name, muscleGroup: ex.muscleGroup, order: 0, bodyweightFactor: ex.bodyweightFactor })
+      } else if (ex.bodyweightFactor != null && existing.bodyweightFactor === undefined) {
+        // Marks exercises seeded before the factor existed; 0 means the user turned it off.
+        await db.exercises.update(existing.id!, { bodyweightFactor: ex.bodyweightFactor })
+      }
     }
   })
 }

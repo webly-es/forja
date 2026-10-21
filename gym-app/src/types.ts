@@ -78,6 +78,9 @@ export interface Exercise {
   name: string
   muscleGroup: MuscleGroup
   order: number
+  // Share of body weight the exercise moves (1 pull-ups, 0.64 push-ups…). Undefined = loaded
+  // exercise; 0 = the user turned it off, so the seed doesn't mark it again.
+  bodyweightFactor?: number
 }
 
 // 'ladder': guided dumbbell circuit with descending reps (see lib/ladder.ts).
@@ -170,7 +173,8 @@ export interface SetLog {
   profileId: number
   exerciseId: number
   setNumber: number
-  weightKg: number
+  weightKg: number // on bodyweight exercises, the added weight (0 = none)
+  bodyKg?: number // body weight moved at the time (weight × factor); bodyweight exercises only
   reps: number
   restSeconds: number
   completedAt: string // ISO datetime

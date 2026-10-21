@@ -11,6 +11,7 @@ import { getExerciseTarget } from '../db/workoutReviews'
 import { Sparkles, Target } from 'lucide-react'
 import { liveHint, type LiveHint } from '../lib/liveCoach'
 import { formatPrescription } from '../lib/prescription'
+import { bodyKgFor, formatLoad } from '../lib/bodyweight'
 import type { Exercise, RoutineItem } from '../types'
 
 const HINT_TONE: Record<LiveHint['tone'], string> = {
@@ -51,6 +52,7 @@ export function ExerciseCard({ exercise, plan, profileId, sessionId, onSetLogged
   )
 
   const target = useLiveQuery(() => getExerciseTarget(profileId, exercise.id!), [profileId, exercise.id])
+  const profile = useLiveQuery(() => db.profiles.get(profileId), [profileId])
 
   const [editingSetId, setEditingSetId] = useState<number | null>(null)
   const [showTargetComment, setShowTargetComment] = useState(false)
@@ -58,18 +60,21 @@ export function ExerciseCard({ exercise, plan, profileId, sessionId, onSetLogged
 
   const sets = sessionSets ?? []
   const prescription = plan ? formatPrescription(plan) : null
-  const hint = liveHint(exercise.name, sets, plan, target)
+  const hint = liveHint(exercise, sets, plan, target)
+  // Bodyweight exercises: the weight typed is the added weight, the body share is snapshotted per set.
+  const bodyKg = profile ? bodyKgFor(exercise, profile.weightKg) : undefined
+  const bodyweight = bodyKg != null
   const lastLoggedInSession = sets[sets.length - 1]
   // First set: the coach's target if there is one, else last time. Later sets: repeat the previous one.
-  const defaultWeight = lastLoggedInSession?.weightKg ?? target?.weightKg ?? lastSet?.weightKg
+  const defaultWeight = lastLoggedInSession?.weightKg ?? target?.weightKg ?? lastSet?.weightKg ?? (bodyweight ? 0 : undefined)
   const defaultReps = lastLoggedInSession?.reps ?? target?.reps ?? lastSet?.reps ?? plan?.repMin
 
   async function handleSaveSet(weightKg: number, reps: number) {
     setSaving(true)
     try {
       const previous = await getPreviousSetsForExercise(profileId, exercise.id!, sessionId)
-      await addSet({ sessionId, profileId, exerciseId: exercise.id!, weightKg, reps })
-      onSetLogged(detectRecord(weightKg, reps, previous))
+      await addSet({ sessionId, profileId, exerciseId: exercise.id!, weightKg, bodyKg, reps })
+      onSetLogged(detectRecord({ weightKg, bodyKg, reps }, previous))
     } finally {
       setSaving(false)
     }
@@ -96,7 +101,7 @@ export function ExerciseCard({ exercise, plan, profileId, sessionId, onSetLogged
         <div className="flex shrink-0 flex-col items-end gap-1">
           {lastSet && (
             <span className="rounded-full border border-border bg-surface-2 px-2.5 py-1 text-xs text-text-muted">
-              Última vez: {lastSet.weightKg.toLocaleString('es')}kg × {lastSet.reps}
+              Última vez: {formatLoad(lastSet)} × {lastSet.reps}
             </span>
           )}
           {target && (
@@ -107,12 +112,12 @@ export function ExerciseCard({ exercise, plan, profileId, sessionId, onSetLogged
               aria-expanded={showTargetComment}
             >
               <Target size={12} />
-              Objetivo: {target.weightKg.toLocaleString('es')}kg × {target.reps}
+              Objetivo: {formatLoad({ weightKg: target.weightKg, bodyKg })} × {target.reps}
             </button>
           )}
           {bestSet && (
             <span className="rounded-full border border-accent-muted bg-accent-muted/40 px-2.5 py-1 text-xs text-accent">
-              Máximo: {bestSet.weightKg.toLocaleString('es')}kg × {bestSet.reps}
+              Máximo: {formatLoad(bestSet)} × {bestSet.reps}
             </span>
           )}
         </div>
@@ -154,7 +159,7 @@ export function ExerciseCard({ exercise, plan, profileId, sessionId, onSetLogged
                 onClick={() => setEditingSetId(s.id!)}
                 className="rounded-md border border-accent-muted bg-accent-muted/40 px-2 py-1 text-xs text-accent"
               >
-                Serie {s.setNumber}: {s.weightKg.toLocaleString('es')}kg × {s.reps}
+                Serie {s.setNumber}: {formatLoad(s)} × {s.reps}
               </button>
             ),
           )}
@@ -170,6 +175,7 @@ export function ExerciseCard({ exercise, plan, profileId, sessionId, onSetLogged
           setNumber={sets.length + 1}
           defaultWeight={defaultWeight}
           defaultReps={defaultReps}
+          bodyweight={bodyweight}
           onSave={handleSaveSet}
           saving={saving}
         />

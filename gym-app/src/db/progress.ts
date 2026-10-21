@@ -5,6 +5,7 @@ import { shiftDateKey, todayKey } from '../lib/dates'
 import { estimateOneRepMax } from '../lib/workoutHistory'
 import type { MeasurementType } from '../lib/measurements'
 import type { Exercise } from '../types'
+import { loadOf } from '../lib/bodyweight'
 
 export interface SeriesPoint {
   date: string // yyyy-mm-dd or ISO datetime, oldest first
@@ -63,7 +64,7 @@ export interface ExerciseProgressPoint {
   oneRepMax: number
 }
 
-// Per finished session: heaviest set and best estimated 1RM.
+// Per finished session: heaviest set and best estimated 1RM (body share included on bodyweight exercises).
 export async function getExerciseProgression(profileId: number, exerciseId: number): Promise<ExerciseProgressPoint[]> {
   const sets = await filterSetsFromFinishedSessions(await db.sets.where({ profileId, exerciseId }).toArray())
   const sessions = await db.workoutSessions.bulkGet([...new Set(sets.map((s) => s.sessionId))])
@@ -74,8 +75,8 @@ export async function getExerciseProgression(profileId: number, exerciseId: numb
     const date = startedAt.get(s.sessionId)
     if (!date) continue
     const point = bySession.get(s.sessionId) ?? { date, topWeight: 0, oneRepMax: 0 }
-    point.topWeight = Math.max(point.topWeight, s.weightKg)
-    point.oneRepMax = Math.max(point.oneRepMax, Math.round(estimateOneRepMax(s.weightKg, s.reps) * 10) / 10)
+    point.topWeight = Math.max(point.topWeight, loadOf(s))
+    point.oneRepMax = Math.max(point.oneRepMax, Math.round(estimateOneRepMax(loadOf(s), s.reps) * 10) / 10)
     bySession.set(s.sessionId, point)
   }
   return [...bySession.values()].sort((a, b) => a.date.localeCompare(b.date))

@@ -57,7 +57,7 @@ export function CatalogPicker({ exercises, selectedIds, onToggle }: CatalogPicke
       <div className="flex flex-col gap-2">
         {list.map((ex) => {
           const selected = selectedIds.includes(ex.id!)
-          const details = [showGroup ? ex.muscleGroup : null, equipmentOf(ex.name)].filter(Boolean)
+          const details = [showGroup ? ex.muscleGroup : null, equipmentOf(ex)].filter(Boolean)
           return (
             <div
               key={ex.id}

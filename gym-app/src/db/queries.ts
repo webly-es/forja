@@ -3,6 +3,7 @@ import type { SetLog } from '../types'
 import { addSeedTombstone, tombstoneKeys } from './seedTombstones'
 import { coverForGroups, type RoutineCover } from '../lib/routineCovers'
 import type { MuscleGroup } from '../lib/muscleGroups'
+import { loadOf } from '../lib/bodyweight'
 
 // Starting a routine (StartWorkout.startRoutine) creates a workoutSessions
 // row immediately, before any set is logged. If the user backs out or closes
@@ -68,7 +69,7 @@ export async function getBestSetForExercise(
 ): Promise<SetLog | undefined> {
   const rawSets = await db.sets.where('exerciseId').equals(exerciseId).and((s) => s.profileId === profileId).toArray()
   const sets = await filterSetsFromFinishedSessions(rawSets, currentSessionId)
-  sets.sort((a, b) => b.weightKg - a.weightKg || b.reps - a.reps)
+  sets.sort((a, b) => loadOf(b) - loadOf(a) || b.reps - a.reps)
   return sets[0]
 }
 
@@ -81,6 +82,7 @@ export async function addSet(params: {
   profileId: number
   exerciseId: number
   weightKg: number
+  bodyKg?: number
   reps: number
 }) {
   return db.transaction('rw', db.sets, async () => {
@@ -93,6 +95,7 @@ export async function addSet(params: {
       exerciseId: params.exerciseId,
       setNumber: existing + 1,
       weightKg: params.weightKg,
+      bodyKg: params.bodyKg,
       reps: params.reps,
       restSeconds: 0,
       completedAt: new Date().toISOString(),

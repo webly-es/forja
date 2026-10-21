@@ -8,6 +8,7 @@ import { NO_PERIOD_LABELS } from '../cycle'
 import { bestOneRepMax, sessionsWithoutImprovement } from '../workoutHistory'
 import { REP_RANGES } from './workoutCoach'
 import { generateJson, mediaPart, type GeminiPart } from './geminiClient'
+import { formatSetForAi, loadOf } from '../bodyweight'
 
 export type TrainingLevel = 'beginner' | 'intermediate' | 'advanced'
 export type TrainingPlace = 'gym' | 'dumbbells' | 'home'
@@ -78,19 +79,22 @@ export function describeHistory(ctx: TrainingContext): string[] {
     lines.push('Sin series registradas todavía: trátalo según el nivel que indica.')
     return lines
   }
-  lines.push('Por ejercicio (id, sesiones, última vez, mejor serie de la última sesión, 1RM estimado, sesiones seguidas sin mejorar):')
+  lines.push(
+    'Por ejercicio (id, sesiones, última vez, mejor serie de la última sesión, 1RM estimado, sesiones seguidas sin mejorar). ' +
+      '"PC(x)+y" = peso corporal movido x kg más y kg de lastre:',
+  )
   for (const { exercise, history, lastDate } of ctx.progress.slice(0, MAX_PROGRESS_LINES)) {
-    const best = history.today.reduce((a, b) => (b.weightKg * b.reps > a.weightKg * a.reps ? b : a))
+    const best = history.today.reduce((a, b) => (loadOf(b) * b.reps > loadOf(a) * a.reps ? b : a))
     lines.push(
       `- [id ${exercise.id}] ${exercise.name}: ${history.previous.length + 1} ses., ${shortDate(lastDate)}, ` +
-        `${kg(best.weightKg)}×${best.reps}, 1RM ${kg(bestOneRepMax(history.today))} kg, sin mejorar ${sessionsWithoutImprovement(history)}`,
+        `${formatSetForAi(best)}, 1RM ${kg(bestOneRepMax(history.today))} kg, sin mejorar ${sessionsWithoutImprovement(history)}`,
     )
   }
   return lines
 }
 
 function placeAllows(place: TrainingPlace, exercise: Exercise): boolean {
-  const equipment = equipmentOf(exercise.name)
+  const equipment = equipmentOf(exercise)
   if (place === 'gym') return true
   if (place === 'dumbbells') return equipment === 'Mancuernas' || equipment === 'Peso corporal' || equipment === null
   return equipment === 'Peso corporal' || equipment === null
@@ -99,7 +103,7 @@ function placeAllows(place: TrainingPlace, exercise: Exercise): boolean {
 function describeCatalog(catalog: Exercise[]): string[] {
   return [
     'Catálogo disponible (id | nombre | grupo | material). Usa SOLO estos ejercicios y sus id exactos:',
-    ...catalog.map((e) => `${e.id} | ${e.name} | ${e.muscleGroup} | ${equipmentOf(e.name) ?? 'sin indicar'}`),
+    ...catalog.map((e) => `${e.id} | ${e.name} | ${e.muscleGroup} | ${equipmentOf(e) ?? 'sin indicar'}`),
   ]
 }
 

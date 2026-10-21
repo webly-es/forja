@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Trophy, X } from 'lucide-react'
 import type { PersonalRecord } from '../lib/records'
 import { playRecordChime, vibrateRecord } from '../lib/sound'
+import { formatLoad } from '../lib/bodyweight'
 
 interface RecordToastProps {
   exerciseName: string
@@ -10,7 +11,6 @@ interface RecordToastProps {
 }
 
 const VISIBLE_MS = 4500
-const kg = (n: number) => n.toLocaleString('es', { maximumFractionDigits: 1 })
 
 // Brief gold banner at the top when a set beats the exercise's personal best.
 export function RecordToast({ exerciseName, record, onClose }: RecordToastProps) {
@@ -36,10 +36,10 @@ export function RecordToast({ exerciseName, record, onClose }: RecordToastProps)
           </div>
           <div className="truncate text-sm text-text">
             <span className="font-display text-base">
-              {kg(record.weightKg)} kg × {record.reps}
+              {formatLoad(record.set)} × {record.set.reps}
             </span>{' '}
             <span className="text-text-muted">
-              (antes {kg(record.previous.weightKg)} × {record.previous.reps})
+              (antes {formatLoad(record.previous)} × {record.previous.reps})
             </span>
           </div>
           <div className="truncate text-xs text-text-muted">{exerciseName}</div>

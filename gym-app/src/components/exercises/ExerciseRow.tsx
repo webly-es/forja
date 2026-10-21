@@ -3,6 +3,7 @@ import { ExercisePhoto } from '../ExercisePhoto'
 import { equipmentOf } from '../../lib/equipment'
 import type { ExerciseStats } from '../../db/exerciseStats'
 import type { Exercise } from '../../types'
+import { formatLoad } from '../../lib/bodyweight'
 
 interface ExerciseRowProps {
   exercise: Exercise
@@ -11,15 +12,11 @@ interface ExerciseRowProps {
   onOpen: () => void
 }
 
-function formatKg(kg: number) {
-  return Number.isInteger(kg) ? String(kg) : kg.toFixed(1).replace('.', ',')
-}
-
 export function ExerciseRow({ exercise, stats, showGroup, onOpen }: ExerciseRowProps) {
   const machine = stats?.machine
   const details = [
     showGroup ? exercise.muscleGroup : null,
-    equipmentOf(exercise.name),
+    equipmentOf(exercise),
     machine?.seat ? `Asiento ${machine.seat}` : null,
     machine?.lever ? `Palanca ${machine.lever}` : null,
   ].filter(Boolean)
@@ -39,7 +36,7 @@ export function ExerciseRow({ exercise, stats, showGroup, onOpen }: ExerciseRowP
           {best ? (
             <>
               <span className="block font-display text-base leading-none text-accent">
-                {formatKg(best.weightKg)} kg
+                {formatLoad(best)}
               </span>
               <span className="mt-1 block text-[11px] text-text-muted">× {best.reps} récord</span>
             </>

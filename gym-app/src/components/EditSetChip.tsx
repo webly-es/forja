@@ -9,7 +9,7 @@ export function EditSetChip({ set, onDone }: { set: SetLog; onDone: () => void }
   const [reps, setReps] = useState(String(set.reps))
 
   async function handleSave() {
-    const weightKg = Number(weight)
+    const weightKg = Number(weight) // added weight on bodyweight sets; bodyKg stays as logged
     const repsNum = Number(reps)
     if (weightKg < 0 || repsNum <= 0) return
     await db.sets.update(set.id!, { weightKg, reps: repsNum })
@@ -23,6 +23,7 @@ export function EditSetChip({ set, onDone }: { set: SetLog; onDone: () => void }
 
   return (
     <div className="flex items-center gap-1 rounded-md border border-accent bg-accent-muted/40 px-1.5 py-1">
+      {set.bodyKg != null && <span className="text-[10px] text-accent">PC +</span>}
       <input
         type="number"
         inputMode="decimal"

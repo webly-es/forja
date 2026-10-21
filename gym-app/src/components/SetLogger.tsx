@@ -4,15 +4,17 @@ interface SetLoggerProps {
   setNumber: number
   defaultWeight?: number
   defaultReps?: number
+  bodyweight?: boolean // weight field is the added weight; empty means none
   onSave: (weightKg: number, reps: number) => void
   saving?: boolean
 }
 
-export function SetLogger({ setNumber, defaultWeight, defaultReps, onSave, saving }: SetLoggerProps) {
+export function SetLogger({ setNumber, defaultWeight, defaultReps, bodyweight, onSave, saving }: SetLoggerProps) {
   const [weight, setWeight] = useState(defaultWeight != null ? String(defaultWeight) : '')
   const [reps, setReps] = useState(defaultReps != null ? String(defaultReps) : '')
 
-  const canSave = weight.trim() !== '' && reps.trim() !== '' && Number(weight) >= 0 && Number(reps) > 0
+  const weightOk = bodyweight && weight.trim() === '' ? true : weight.trim() !== '' && Number(weight) >= 0
+  const canSave = weightOk && reps.trim() !== '' && Number(reps) > 0
 
   function handleSave() {
     if (!canSave || saving) return
@@ -23,10 +25,12 @@ export function SetLogger({ setNumber, defaultWeight, defaultReps, onSave, savin
     <div className="flex items-center gap-2">
       <span className="w-6 shrink-0 text-center text-sm text-text-muted">{setNumber}</span>
       <div className="flex flex-1 items-center gap-2">
+        {bodyweight && <span className="shrink-0 text-xs font-medium text-text-muted">PC +</span>}
         <input
           type="number"
           inputMode="decimal"
-          placeholder="kg"
+          placeholder={bodyweight ? 'lastre' : 'kg'}
+          aria-label={bodyweight ? 'Lastre en kg' : 'Peso en kg'}
           value={weight}
           onChange={(e) => setWeight(e.target.value)}
           className="w-full min-w-0 rounded-lg border border-border bg-surface-2 px-3 py-2 text-center text-text focus:border-accent focus:outline-none"

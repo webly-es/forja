@@ -4,6 +4,7 @@ import { equipmentOf } from '../equipment'
 import { formatPrescription } from '../prescription'
 import { STYLE, type ChangeRequest } from './routineCoach'
 import { generateJson, mediaPart, type GeminiPart } from './geminiClient'
+import { formatSetForAi } from '../bodyweight'
 
 export interface CoachQuestion {
   profile: Profile
@@ -44,8 +45,6 @@ const ANSWER_SCHEMA = {
   required: ['answer', 'alternatives'],
 }
 
-const kg = (n: number) => n.toLocaleString('es', { maximumFractionDigits: 1 })
-
 function buildPrompt(q: CoachQuestion, question: ChangeRequest): string {
   const { profile, exercise, plan, todaySets } = q
   const inWorkout = new Set(q.routineExerciseIds)
@@ -53,10 +52,10 @@ function buildPrompt(q: CoachQuestion, question: ChangeRequest): string {
   return [
     'Eres un entrenador personal en la sala, al lado de la persona, a mitad de su entrenamiento. Responde rápido y al grano.',
     `Persona: ${profile.sex === 'M' ? 'hombre' : 'mujer'}, ${getAge(profile.birthDate)} años, ${profile.weightKg} kg. Objetivo: ${GOAL_LABELS[profile.goal]}.`,
-    `Ejercicio actual: [id ${exercise.id}] ${exercise.name} (${exercise.muscleGroup}, ${equipmentOf(exercise.name) ?? 'material sin indicar'}).`,
+    `Ejercicio actual: [id ${exercise.id}] ${exercise.name} (${exercise.muscleGroup}, ${equipmentOf(exercise) ?? 'material sin indicar'}).`,
     prescription ? `Objetivo de la rutina: ${prescription}.` : 'Sin series ni repeticiones fijadas en la rutina.',
     todaySets.length
-      ? `Series de hoy: ${todaySets.map((s) => `${kg(s.weightKg)}×${s.reps}`).join(', ')}.`
+      ? `Series de hoy: ${todaySets.map(formatSetForAi).join(', ')}.`
       : 'Aún no ha hecho series de este ejercicio hoy.',
     '',
     question.audio ? 'Su pregunta está en el audio adjunto (puede haber ruido de gimnasio).' : `Su pregunta: "${question.text?.trim() ?? ''}"`,
@@ -66,10 +65,11 @@ function buildPrompt(q: CoachQuestion, question: ChangeRequest): string {
       'Si es una pregunta de técnica, peso o repeticiones, responde y deja alternatives vacío.',
     'Si describe dolor agudo, punzante o que no se va, dile que pare ese ejercicio y que lo consulte con un profesional si persiste.',
     'En answer puedes dar el peso orientativo para empezar la alternativa si se deduce de lo que mueve hoy.',
+    'En ejercicios de peso corporal, "PC(x)+y" significa que mueve x kg de su cuerpo más y kg de lastre; habla de lastre, no de peso de máquina.',
     STYLE,
     '',
     'Catálogo (id | nombre | grupo | material); los marcados con * ya están en su entrenamiento de hoy:',
-    ...q.catalog.map((e) => `${e.id} | ${e.name} | ${e.muscleGroup} | ${equipmentOf(e.name) ?? 'sin indicar'}${inWorkout.has(e.id!) ? ' *' : ''}`),
+    ...q.catalog.map((e) => `${e.id} | ${e.name} | ${e.muscleGroup} | ${equipmentOf(e) ?? 'sin indicar'}${inWorkout.has(e.id!) ? ' *' : ''}`),
   ].join('\n')
 }
 
