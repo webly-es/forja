@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { liveHint } from './liveCoach'
 import type { Exercise, SetLog } from '../types'
 
-const legPress: Exercise = { id: 1, name: 'Prensa de piernas', muscleGroup: 'Piernas' } as Exercise
-const curl: Exercise = { id: 2, name: 'Curl con mancuernas', muscleGroup: 'Bíceps' } as Exercise
-const pullUp: Exercise = { id: 3, name: 'Dominadas', muscleGroup: 'Espalda', bodyweightFactor: 0.95 } as Exercise
+const exercise = (id: number, name: string, bodyweightFactor?: number) =>
+  ({ id, name, muscleGroup: 'Piernas', order: id, bodyweightFactor }) as unknown as Exercise
+const legPress = exercise(1, 'Prensa de piernas')
+const curl = exercise(2, 'Curl con mancuernas')
+const pullUp = exercise(3, 'Dominadas', 0.95)
 
 const set = (weightKg: number, reps: number, bodyKg?: number): SetLog => ({
   sessionId: 1,
