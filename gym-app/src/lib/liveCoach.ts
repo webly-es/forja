@@ -28,7 +28,15 @@ export function liveHint(
     return { tone: 'done', text: `${plan.sets} series hechas. Pasa al siguiente ejercicio.` }
   }
   if (repMin == null || repMax == null) return null
-  if (last.bodyKg != null) return bodyweightHint(last, repMin, repMax)
+  const hint = last.bodyKg != null ? bodyweightHint(last, repMin, repMax) : loadedHint(exercise, last, repMin, repMax)
+  if (!hint || plan?.sets == null) return hint
+  const left = plan.sets - sets.length
+  return { ...hint, text: `${hint.text} ${left === 1 ? 'Te queda 1 serie.' : `Te quedan ${left} series.`}` }
+}
+
+// Loaded exercises: past the top of the range → more weight; far below it → less; else keep it.
+// Landing exactly on the top keeps the weight: fatigue from the sets still to come will take reps off.
+function loadedHint(exercise: Exercise, last: SetLog, repMin: number, repMax: number): LiveHint | null {
   if (last.weightKg <= 0) return null
 
   const dumbbells = equipmentOf(exercise) === 'Mancuernas'

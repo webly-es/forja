@@ -94,6 +94,8 @@ export function buildPrompt({ profile, session, exercises, recent, cycle, skippe
       'cuando pase del tope del rango, añade 2,5 kg de lastre. Si sin lastre no llega al mínimo del rango, propone 0 kg y las repeticiones que pueda hacer bien, y sugiere negativas o una variante más fácil en el comentario.',
     'trend: "up" si hoy mejoró, "flat" si igual, "down" si empeoró, "new" si no hay historial.',
     'nextWeightKg y nextReps son el objetivo de la primera serie efectiva de la próxima sesión.',
+    'Si un ejercicio tiene "Series previstas", elige nextWeightKg para que pueda completar el rango en todas esas series, no solo en la primera: ' +
+      'con 4 o más series el cansancio acumulado pesa más, así que no subas si las últimas series de hoy se quedaron por debajo del mínimo. Menciona las series en el comentario cuando influyan.',
     'Usa los exerciseId exactos de la lista.',
     'El contexto de comida y peso sirve solo para matizar: menciónalo si explica un rendimiento peor o si comer muy por debajo de lo que gasta compromete su objetivo. Si no hay datos, no supongas nada.',
     'Escribe en español de España con tildes y ortografía correctas, tuteando siempre (nunca de usted). Tono serio, directo y breve, sin emojis ni exclamaciones.',

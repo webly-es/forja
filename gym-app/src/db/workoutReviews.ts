@@ -20,6 +20,7 @@ export interface ExerciseHistory {
   exercise: Exercise
   today: SetLog[]
   previous: PastSession[] // newest first
+  plannedSets?: number // the person's own setting, else the routine's
 }
 
 // Nutrition and body-weight context around the workout, so the coach can explain a bad day.
@@ -72,7 +73,13 @@ export async function getSessionHistory(sessionId: number): Promise<SessionHisto
 
   const todaySets = await db.sets.where('sessionId').equals(sessionId).toArray()
   const exerciseIds = [...new Set(todaySets.map((s) => s.exerciseId))]
-  const exercises = await db.exercises.bulkGet(exerciseIds)
+  const [exercises, links, settings] = await Promise.all([
+    db.exercises.bulkGet(exerciseIds),
+    db.routineExercises.where('routineId').equals(session.routineId).toArray(),
+    db.machineSettings.where('profileId').equals(session.profileId).toArray(),
+  ])
+  const plannedSets = (exerciseId: number) =>
+    settings.find((s) => s.exerciseId === exerciseId)?.sets ?? links.find((l) => l.exerciseId === exerciseId)?.sets
 
   const result: ExerciseHistory[] = []
   for (const exercise of exercises) {
@@ -96,6 +103,7 @@ export async function getSessionHistory(sessionId: number): Promise<SessionHisto
         date: ps.startedAt,
         sets: past.filter((s) => s.sessionId === ps.id).sort(bySetNumber),
       })),
+      plannedSets: plannedSets(exercise.id),
     })
   }
   const [recent, cycle, skippedExercises] = await Promise.all([

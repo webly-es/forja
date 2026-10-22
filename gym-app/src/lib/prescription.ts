@@ -18,10 +18,17 @@ export function formatReps(repMin?: number, repMax?: number): string | null {
   return repMax != null && repMax !== repMin ? `${repMin}-${repMax}` : String(repMin)
 }
 
-// "4 × 8-10 · 90 s", or null when the routine doesn't prescribe anything for this exercise.
+// "4 × 8-10 · 90 s" ("4 series" without reps), or null when nothing is prescribed for this exercise.
 export function formatPrescription(item: Pick<RoutineItem, 'sets' | 'repMin' | 'repMax' | 'restSeconds'>): string | null {
   const reps = formatReps(item.repMin, item.repMax)
-  const work = item.sets != null ? `${item.sets} × ${reps ?? '—'}` : reps ? `${reps} reps` : null
+  const work =
+    item.sets != null
+      ? reps
+        ? `${item.sets} × ${reps}`
+        : `${item.sets} ${item.sets === 1 ? 'serie' : 'series'}`
+      : reps
+        ? `${reps} reps`
+        : null
   const parts = [work, item.restSeconds != null ? formatRest(item.restSeconds) : null].filter(Boolean)
   return parts.length ? parts.join(' · ') : null
 }

@@ -52,6 +52,7 @@ export function describeExerciseHistory(history: ExerciseHistory): string {
             'Los kg tras "PC+" son lastre añadido; volumen y 1RM ya incluyen el cuerpo.',
         ]
       : []),
+    ...(history.plannedSets != null ? [`  Series previstas: ${history.plannedSets}`] : []),
     `  Hoy: ${formatSets(history.today)}`,
     ...history.previous.map((p) => `  ${shortDate(p.date)}: ${formatSets(p.sets)}`),
   ]

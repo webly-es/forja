@@ -1,22 +1,23 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Plus, SlidersHorizontal } from 'lucide-react'
-import { getMachineSetting, saveMachineSetting, type MachineSettingFields } from '../db/machineSettings'
+import { MAX_PLANNED_SETS, getMachineSetting, saveMachineSetting, type MachineSettingFields } from '../db/machineSettings'
 
 interface MachineSettingsProps {
   profileId: number
   exerciseId: number
 }
 
-const EMPTY: MachineSettingFields = { seat: '', lever: '', note: '' }
+const EMPTY: MachineSettingFields = { seat: '', lever: '', note: '', sets: undefined }
 
-// Seat/lever positions for this person on this machine, editable mid-workout.
+// Planned sets and seat/lever positions for this person on this exercise, editable mid-workout.
+// The sets feed the between-set hint and the coach.
 export function MachineSettings({ profileId, exerciseId }: MachineSettingsProps) {
   const setting = useLiveQuery(() => getMachineSetting(profileId, exerciseId), [profileId, exerciseId])
   const [draft, setDraft] = useState<MachineSettingFields | null>(null)
 
   function startEditing() {
-    setDraft(setting ? { seat: setting.seat, lever: setting.lever, note: setting.note } : EMPTY)
+    setDraft(setting ? { seat: setting.seat, lever: setting.lever, note: setting.note, sets: setting.sets } : EMPTY)
   }
 
   async function save() {
@@ -36,11 +37,24 @@ export function MachineSettings({ profileId, exerciseId }: MachineSettingsProps)
         }}
         className="mt-3 rounded-lg border border-border bg-bg/40 p-3"
       >
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-2">
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] text-text-muted">Series</span>
+            <input
+              autoFocus
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={MAX_PLANNED_SETS}
+              value={draft.sets ?? ''}
+              onChange={(e) => setDraft({ ...draft, sets: e.target.value === '' ? undefined : Number(e.target.value) })}
+              placeholder="Ej. 4"
+              className={field}
+            />
+          </label>
           <label className="flex flex-col gap-1">
             <span className="text-[11px] text-text-muted">Asiento</span>
             <input
-              autoFocus
               value={draft.seat}
               onChange={(e) => setDraft({ ...draft, seat: e.target.value })}
               placeholder="Ej. 4"
@@ -48,7 +62,7 @@ export function MachineSettings({ profileId, exerciseId }: MachineSettingsProps)
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] text-text-muted">Palanca / máquina</span>
+            <span className="text-[11px] text-text-muted">Palanca</span>
             <input
               value={draft.lever}
               onChange={(e) => setDraft({ ...draft, lever: e.target.value })}
@@ -89,15 +103,20 @@ export function MachineSettings({ profileId, exerciseId }: MachineSettingsProps)
         className="mt-2 flex items-center gap-1 text-xs text-text-muted transition-colors hover:text-accent"
       >
         <Plus size={12} />
-        Ajustes de máquina
+        Series y ajustes
       </button>
     )
   }
 
   const chip = 'rounded-md border border-border bg-surface-2 px-2 py-0.5 text-xs text-text'
   return (
-    <button onClick={startEditing} className="mt-3 flex w-full flex-wrap items-center gap-1.5 text-left" aria-label="Editar ajustes de máquina">
+    <button onClick={startEditing} className="mt-3 flex w-full flex-wrap items-center gap-1.5 text-left" aria-label="Editar series y ajustes">
       <SlidersHorizontal size={13} className="text-accent" />
+      {setting.sets != null && (
+        <span className={chip}>
+          {setting.sets} {setting.sets === 1 ? 'serie' : 'series'}
+        </span>
+      )}
       {setting.seat && (
         <span className={chip}>
           <span className="text-text-muted">Asiento</span> {setting.seat}

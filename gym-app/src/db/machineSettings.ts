@@ -1,7 +1,15 @@
 import { db } from './db'
 import type { MachineSetting } from '../types'
 
-export type MachineSettingFields = Pick<MachineSetting, 'seat' | 'lever' | 'note'>
+export type MachineSettingFields = Pick<MachineSetting, 'seat' | 'lever' | 'note' | 'sets'>
+
+export const MAX_PLANNED_SETS = 10
+
+// Whole number 1-10, anything else means "not set".
+export function cleanPlannedSets(value: unknown): number | undefined {
+  const n = Math.round(Number(value))
+  return Number.isFinite(n) && n >= 1 ? Math.min(n, MAX_PLANNED_SETS) : undefined
+}
 
 export function getMachineSetting(profileId: number, exerciseId: number) {
   return db.machineSettings.where('[profileId+exerciseId]').equals([profileId, exerciseId]).first()
@@ -9,9 +17,9 @@ export function getMachineSetting(profileId: number, exerciseId: number) {
 
 // Upsert; clearing every field removes the row so the card goes back to its empty state.
 export async function saveMachineSetting(profileId: number, exerciseId: number, fields: MachineSettingFields) {
-  const clean = { seat: fields.seat.trim(), lever: fields.lever.trim(), note: fields.note.trim() }
+  const clean = { seat: fields.seat.trim(), lever: fields.lever.trim(), note: fields.note.trim(), sets: cleanPlannedSets(fields.sets) }
   const existing = await getMachineSetting(profileId, exerciseId)
-  if (!clean.seat && !clean.lever && !clean.note) {
+  if (!clean.seat && !clean.lever && !clean.note && clean.sets == null) {
     if (existing) await db.machineSettings.delete(existing.id!)
     return
   }

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { liveHint } from './liveCoach'
+import { describeExerciseHistory } from './workoutHistory'
+import { formatPrescription } from './prescription'
 import type { Exercise, SetLog } from '../types'
 
 const exercise = (id: number, name: string, bodyweightFactor?: number) =>
@@ -50,5 +52,40 @@ describe('live hint without routine prescription or saved target', () => {
   it('the routine prescription still wins over the goal', () => {
     const plan = { exerciseId: 1, repMin: 4, repMax: 6 }
     expect(liveHint(legPress, [set(100, 7)], plan, undefined, 'recomp')?.tone).toBe('up')
+  })
+})
+
+describe('planned sets', () => {
+  const plan = { exerciseId: 1, sets: 4 }
+
+  it('tells how many sets are left', () => {
+    expect(liveHint(legPress, [set(100, 10)], plan, undefined, 'recomp')?.text).toBe(
+      'En rango (8-12). Mantén 100 kg y busca 11 repeticiones. Te quedan 3 series.',
+    )
+    expect(liveHint(legPress, [set(100, 10), set(100, 10), set(100, 9)], plan, undefined, 'recomp')?.text).toMatch(/Te queda 1 serie\.$/)
+  })
+
+  it('keeps the weight on the top of the range, raises it only past it', () => {
+    expect(liveHint(legPress, [set(100, 12)], plan, undefined, 'recomp')?.tone).toBe('ok')
+    expect(liveHint(legPress, [set(100, 13)], plan, undefined, 'recomp')?.tone).toBe('up')
+  })
+
+  it('stops once the planned sets are done', () => {
+    const four = [set(100, 10), set(100, 10), set(100, 9), set(100, 8)]
+    expect(liveHint(legPress, four, plan, undefined, 'recomp')).toEqual({
+      tone: 'done',
+      text: '4 series hechas. Pasa al siguiente ejercicio.',
+    })
+  })
+
+  it('shows sets without a rep range as "4 series"', () => {
+    expect(formatPrescription(plan)).toBe('4 series')
+    expect(formatPrescription({ sets: 3, repMin: 8, repMax: 12 })).toBe('3 × 8-12')
+  })
+
+  it('goes into the post-workout prompt', () => {
+    const text = describeExerciseHistory({ exercise: legPress, today: [set(100, 10)], previous: [], plannedSets: 4 })
+    expect(text).toContain('Series previstas: 4')
+    expect(describeExerciseHistory({ exercise: legPress, today: [set(100, 10)], previous: [] })).not.toContain('Series previstas')
   })
 })

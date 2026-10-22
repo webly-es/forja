@@ -35,17 +35,24 @@ export function ActiveWorkout() {
   const session = useLiveQuery(() => db.workoutSessions.get(id), [id])
   const profile = useLiveQuery(() => (session ? db.profiles.get(session.profileId) : undefined), [session])
   // Each exercise with the routine's prescription for it (sets, reps, rest), with today's swaps applied.
+  // The person's own planned sets for an exercise (Series y ajustes) win over the routine's.
   const exercises = useLiveQuery(
     async () => {
       if (!session) return []
       const links = await db.routineExercises.where('routineId').equals(session.routineId).sortBy('order')
       const logged = new Set((await db.sets.where('sessionId').equals(id).toArray()).map((s) => s.exerciseId))
       const entries = applySwaps(links.map((l) => l.exerciseId), session.swaps, logged)
-      const list = await db.exercises.bulkGet(entries.map((e) => e.id))
+      const [list, settings] = await Promise.all([
+        db.exercises.bulkGet(entries.map((e) => e.id)),
+        db.machineSettings.where('profileId').equals(session.profileId).toArray(),
+      ])
+      const plannedSets = new Map(settings.map((s) => [s.exerciseId, s.sets]))
       return entries.flatMap((entry, i) => {
         const exercise = list[i]
         const link = links.find((l) => l.exerciseId === entry.from)
-        return exercise && link ? [{ exercise, plan: linkToItem(link) }] : []
+        if (!exercise || !link) return []
+        const plan = linkToItem(link)
+        return [{ exercise, plan: { ...plan, sets: plannedSets.get(exercise.id!) ?? plan.sets } }]
       })
     },
     [session, id],

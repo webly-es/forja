@@ -299,6 +299,7 @@ export interface MachineSetting {
   seat: string
   lever: string
   note: string
+  sets?: number // series this person plans for the exercise; wins over the routine's
   updatedAt: string
 }
 
