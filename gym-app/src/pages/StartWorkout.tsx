@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useNavigate } from 'react-router-dom'
 import { db } from '../db/db'
-import { getRoutineSummaries, type RoutineSummary } from '../db/queries'
+import { closeAbandonedSessions, getRoutineSummaries, type RoutineSummary } from '../db/queries'
 import { getRoutinesForProfile } from '../db/routines'
 import { useAppStore } from '../store/useAppStore'
 import { CardioPanel } from '../components/CardioPanel'
@@ -31,6 +31,7 @@ export function StartWorkout() {
   const tracksCycle = profile?.sex === 'F' && profile.cycle != null && profile.cycle.method !== 'off'
 
   async function startRoutine(routineId: number, routineName: string) {
+    if (profile) await closeAbandonedSessions(activeProfileId, profile.weightKg)
     const sessionId = (await db.workoutSessions.add({
       profileId: activeProfileId,
       routineId,

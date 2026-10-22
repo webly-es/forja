@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import { addSet, getBestSetForExercise, getLastSetForExercise, getPreviousSetsForExercise } from '../db/queries'
+import { addSet, getBestSetForExercise, getLastSessionSets, getLastSetForExercise, getPreviousSetsForExercise } from '../db/queries'
 import { detectRecord, type PersonalRecord } from '../lib/records'
 import { SetLogger } from './SetLogger'
 import { ExercisePhoto } from './ExercisePhoto'
@@ -9,7 +9,10 @@ import { EditSetChip } from './EditSetChip'
 import { MachineSettings } from './MachineSettings'
 import { getExerciseTarget } from '../db/workoutReviews'
 import { Sparkles, Target } from 'lucide-react'
-import { liveHint, type LiveHint } from '../lib/liveCoach'
+import { liveHint, openingHint, type LiveHint } from '../lib/liveCoach'
+import { suggestTarget } from '../lib/nextTarget'
+import { REP_RANGES } from '../lib/repRanges'
+import { equipmentOf } from '../lib/equipment'
 import { formatPrescription } from '../lib/prescription'
 import { bodyKgFor, formatLoad } from '../lib/bodyweight'
 import type { Exercise, RoutineItem } from '../types'
@@ -51,19 +54,46 @@ export function ExerciseCard({ exercise, plan, profileId, sessionId, onSetLogged
     [profileId, exercise.id, sessionId],
   )
 
-  const target = useLiveQuery(() => getExerciseTarget(profileId, exercise.id!), [profileId, exercise.id])
+  const lastSession = useLiveQuery(
+    () => getLastSessionSets(profileId, exercise.id!, sessionId),
+    [profileId, exercise.id, sessionId],
+  )
+  const aiTarget = useLiveQuery(() => getExerciseTarget(profileId, exercise.id!), [profileId, exercise.id])
   const profile = useLiveQuery(() => db.profiles.get(profileId), [profileId])
 
   const [editingSetId, setEditingSetId] = useState<number | null>(null)
   const [showTargetComment, setShowTargetComment] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  const sets = sessionSets ?? []
-  const prescription = plan ? formatPrescription(plan) : null
-  const hint = liveHint(exercise, sets, plan, target, profile?.goal)
   // Bodyweight exercises: the weight typed is the added weight, the body share is snapshotted per set.
   const bodyKg = profile ? bodyKgFor(exercise, profile.weightKg) : undefined
   const bodyweight = bodyKg != null
+  const sets = sessionSets ?? []
+  const prescription = plan ? formatPrescription(plan) : null
+  const goalRange = profile ? REP_RANGES[profile.goal] : undefined
+  const repMin = plan?.repMin ?? goalRange?.min
+  const repMax = plan?.repMax ?? plan?.repMin ?? goalRange?.max
+  // The AI target only counts if it came from the last session with this exercise (or a later one);
+  // when that analysis never ran, the app works one out from the last session itself.
+  const lastSessionId = lastSession?.[0]?.sessionId
+  const freshAiTarget = aiTarget && (lastSessionId == null || aiTarget.sessionId >= lastSessionId) ? aiTarget : undefined
+  const suggested =
+    !freshAiTarget && lastSession && repMin != null && repMax != null
+      ? suggestTarget(lastSession, repMin, repMax, { dumbbells: equipmentOf(exercise) === 'Mancuernas' })
+      : undefined
+  const target = freshAiTarget ?? (suggested && { ...suggested, comment: 'Calculado por la app con tu última sesión (sin IA).' })
+  const hint =
+    sets.length > 0
+      ? liveHint(exercise, sets, plan, freshAiTarget, profile?.goal)
+      : lastSession && repMin != null && repMax != null && (target || lastSession.length === 0)
+        ? openingHint(
+            target ? formatLoad({ weightKg: target.weightKg, bodyKg }) : undefined,
+            target?.reps,
+            repMin,
+            repMax,
+            plan?.sets,
+          )
+        : null
   const lastLoggedInSession = sets[sets.length - 1]
   // First set: the coach's target if there is one, else last time. Later sets: repeat the previous one.
   const defaultWeight = lastLoggedInSession?.weightKg ?? target?.weightKg ?? lastSet?.weightKg ?? (bodyweight ? 0 : undefined)

@@ -4,11 +4,12 @@ import { addSeedTombstone, tombstoneKeys } from './seedTombstones'
 import { coverForGroups, type RoutineCover } from '../lib/routineCovers'
 import type { MuscleGroup } from '../lib/muscleGroups'
 import { loadOf } from '../lib/bodyweight'
+import { MET_STRENGTH_TRAINING, estimateCalories } from '../lib/calories'
 
 // Starting a routine (StartWorkout.startRoutine) creates a workoutSessions
 // row immediately, before any set is logged. If the user backs out or closes
 // the app without hitting "Finalizar", that session is left with no
-// finishedAt forever — it's hidden from History (which only lists finished
+// finishedAt until the next workout starts (closeAbandonedSessions) — it's hidden from History (which only lists finished
 // sessions) so it can never be deleted from there, but its sets are still in
 // db.sets. Filtering them out here is what makes "Última vez"/"Máximo"
 // ignore those abandoned sessions instead of surfacing stray/mistaken
@@ -46,6 +47,43 @@ export async function getLastSetForExercise(
   const setsInLatestSession = sets.filter((s) => s.sessionId === latestSessionId)
   setsInLatestSession.sort((a, b) => a.setNumber - b.setNumber)
   return setsInLatestSession[0]
+}
+
+// Every set of the latest finished session with this exercise (set order), for the offline target.
+export async function getLastSessionSets(profileId: number, exerciseId: number, excludeSessionId?: number): Promise<SetLog[]> {
+  const rawSets = await db.sets
+    .where('exerciseId')
+    .equals(exerciseId)
+    .and((s) => s.profileId === profileId && s.sessionId !== excludeSessionId)
+    .toArray()
+  const sets = await filterSetsFromFinishedSessions(rawSets)
+  if (sets.length === 0) return []
+  const latestSessionId = sets.reduce((latest, s) => (s.completedAt > latest.completedAt ? s : latest)).sessionId
+  return sets.filter((s) => s.sessionId === latestSessionId).sort((a, b) => a.setNumber - b.setNumber)
+}
+
+// Sessions left open (back arrow or app closed before "Finalizar") can't be resumed, so their sets
+// would be lost for History, "Última vez" and targets. Before a new workout starts, the ones with
+// sets are closed at their last set and the empty ones removed. Ladder sessions resume on their own.
+export async function closeAbandonedSessions(profileId: number, weightKg: number) {
+  const open = await db.workoutSessions
+    .where('profileId')
+    .equals(profileId)
+    .filter((s) => !s.finishedAt && !s.ladder)
+    .toArray()
+  for (const session of open) {
+    const sets = await db.sets.where('sessionId').equals(session.id!).toArray()
+    if (sets.length === 0) {
+      await db.workoutSessions.delete(session.id!)
+      continue
+    }
+    const finishedAt = sets.reduce((last, s) => (s.completedAt > last ? s.completedAt : last), session.startedAt)
+    const minutes = Math.max(1, Math.round((Date.parse(finishedAt) - Date.parse(session.startedAt)) / 60000))
+    await db.workoutSessions.update(session.id!, {
+      finishedAt,
+      caloriesBurned: estimateCalories(session.met ?? MET_STRENGTH_TRAINING, weightKg, minutes),
+    })
+  }
 }
 
 // Every set to compare a new one against: finished sessions plus what's already

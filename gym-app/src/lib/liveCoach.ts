@@ -85,3 +85,11 @@ function bodyweightHint(last: SetLog, repMin: number, repMax: number): LiveHint 
   const load = added > 0 ? `${kg(added)} kg de lastre` : 'sin lastre'
   return { tone: 'ok', text: `En rango (${range}). Sigue ${load}${last.reps < repMax ? ` y busca ${last.reps + 1} repeticiones` : ''}.` }
 }
+
+// Before the first set: today's target, or how to pick a weight the first time.
+export function openingHint(load: string | undefined, reps: number | undefined, repMin: number, repMax: number, plannedSets?: number): LiveHint {
+  const series = plannedSets != null ? ` · ${plannedSets} ${plannedSets === 1 ? 'serie' : 'series'}` : ''
+  if (load && reps) return { tone: 'ok', text: `Hoy: ${load} × ${reps}${series}.` }
+  const range = repMin === repMax ? `${repMin}` : `${repMin}-${repMax}`
+  return { tone: 'ok', text: `Primera vez: elige un peso con el que llegues a ${range} repeticiones${series}.` }
+}
