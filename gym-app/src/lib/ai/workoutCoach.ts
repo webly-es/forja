@@ -5,13 +5,9 @@ import { describeExerciseHistory, describeRecentContext } from '../workoutHistor
 import { generateJson } from './geminiClient'
 import { NO_PERIOD_LABELS, PHASE_LABELS, describeCheckIn } from '../cycle'
 import { describeIncidents } from '../sessionIncidents'
+import { REP_RANGES } from '../repRanges'
 
-export const REP_RANGES: Record<Goal, { min: number; max: number }> = {
-  gain: { min: 6, max: 12 },
-  recomp: { min: 8, max: 12 },
-  maintain: { min: 8, max: 12 },
-  lose: { min: 6, max: 10 },
-}
+export { REP_RANGES }
 
 // How hard to push progression depending on what the person is eating for.
 const GOAL_RULES: Record<Goal, string> = {

@@ -60,7 +60,7 @@ export function ExerciseCard({ exercise, plan, profileId, sessionId, onSetLogged
 
   const sets = sessionSets ?? []
   const prescription = plan ? formatPrescription(plan) : null
-  const hint = liveHint(exercise, sets, plan, target)
+  const hint = liveHint(exercise, sets, plan, target, profile?.goal)
   // Bodyweight exercises: the weight typed is the added weight, the body share is snapshotted per set.
   const bodyKg = profile ? bodyKgFor(exercise, profile.weightKg) : undefined
   const bodyweight = bodyKg != null
