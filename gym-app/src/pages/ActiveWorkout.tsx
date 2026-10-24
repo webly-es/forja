@@ -18,6 +18,7 @@ import { SessionCoachSheet } from '../components/workout/SessionCoachSheet'
 import { SkipReasonSheet } from '../components/workout/SkipReasonSheet'
 import { TimeBudgetSheet } from '../components/workout/TimeBudgetSheet'
 import { estimateMinutes } from '../lib/timeBudget'
+import { PendingCard } from '../components/workout/PendingCard'
 import { restoreExercise, saveSkipped } from '../db/sessionCoach'
 import { SKIP_REASON_LABELS, applyAdjustments, guessSkipReason } from '../lib/sessionIncidents'
 import type { Exercise, RoutineItem, SkipReason } from '../types'
@@ -41,7 +42,18 @@ export function ActiveWorkout() {
   const exercises = useLiveQuery(
     async () => {
       if (!session) return []
-      const links = await db.routineExercises.where('routineId').equals(session.routineId).sortBy('order')
+      const routineLinks = await db.routineExercises.where('routineId').equals(session.routineId).sortBy('order')
+      // Exercises recovered from an earlier session go last, with the prescription of their own routine.
+      const extras = session.extras ?? []
+      const extraLinks = await Promise.all(
+        extras.map((e) =>
+          db.routineExercises.where('routineId').equals(e.routineId).filter((l) => l.exerciseId === e.exerciseId).first(),
+        ),
+      )
+      const links = [
+        ...routineLinks,
+        ...extras.map((e, i) => extraLinks[i] ?? { routineId: e.routineId, exerciseId: e.exerciseId, order: routineLinks.length + i }),
+      ]
       const logged = new Set((await db.sets.where('sessionId').equals(id).toArray()).map((s) => s.exerciseId))
       const entries = applySwaps(links.map((l) => l.exerciseId), session.swaps, logged)
       const [list, settings] = await Promise.all([
@@ -160,6 +172,8 @@ export function ActiveWorkout() {
           </span>
         </span>
       </button>
+
+      {!finished && <PendingCard sessionId={id} />}
 
       {minutesLeft > 0 && (
         <button

@@ -75,11 +75,13 @@ export async function getSessionHistory(sessionId: number): Promise<SessionHisto
   const exerciseIds = [...new Set(todaySets.map((s) => s.exerciseId))]
   const [exercises, links, settings] = await Promise.all([
     db.exercises.bulkGet(exerciseIds),
-    db.routineExercises.where('routineId').equals(session.routineId).toArray(),
+    // Exercises recovered from another routine keep that routine's prescription.
+    db.routineExercises.where('routineId').anyOf([session.routineId, ...(session.extras ?? []).map((e) => e.routineId)]).toArray(),
     db.machineSettings.where('profileId').equals(session.profileId).toArray(),
   ])
   const plannedSets = (exerciseId: number) =>
-    settings.find((s) => s.exerciseId === exerciseId)?.sets ?? links.find((l) => l.exerciseId === exerciseId)?.sets
+    settings.find((s) => s.exerciseId === exerciseId)?.sets ??
+    (links.find((l) => l.routineId === session.routineId && l.exerciseId === exerciseId) ?? links.find((l) => l.exerciseId === exerciseId))?.sets
 
   const result: ExerciseHistory[] = []
   for (const exercise of exercises) {

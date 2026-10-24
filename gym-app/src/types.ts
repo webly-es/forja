@@ -175,6 +175,14 @@ export interface WorkoutSession {
   notes?: SessionNote[] // mid-workout chat with the session coach
   adjustments?: SessionAdjustments // changes accepted from the coach, today only
   skipped?: SkippedExercise[] // exercises left undone, with why
+  extras?: ExtraExercise[] // left pending in an earlier session and added to this one
+  pendingDismissed?: boolean // "No, gracias" to the pending exercises offered at the start
+}
+
+// An exercise brought into today's session from another routine, with that routine for its prescription.
+export interface ExtraExercise {
+  exerciseId: number
+  routineId: number
 }
 
 // Why an exercise of the routine wasn't done (told to the coach or picked on finishing).
