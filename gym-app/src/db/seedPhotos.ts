@@ -52,6 +52,7 @@ const SEED_PHOTOS: [exerciseName: string, file: string][] = [
   ['Extensión de tríceps en polea con cuerda', 'hombre/triceps-polea-cuerda'],
   ['Extensión de tríceps en polea', 'hombre/triceps-polea-cuerda'], // his own exercise, same pushdown
   ['Extensión de tríceps en polea con barra', 'hombre/triceps-polea-cuerda'],
+  ['Extensión de tríceps en poleas', 'hombre/triceps-polea-cuerda'], // as he named it
   ['Extensión de tríceps en polea a una mano', 'hombre/triceps-polea-una-mano'],
   ['Fondos de tríceps en máquina', 'hombre/fondos-triceps-maquina'],
   ['Extensión de tríceps sobre la cabeza en polea', 'hombre/triceps-sobre-cabeza'],
