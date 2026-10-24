@@ -10,12 +10,14 @@ import { WorkoutReview } from '../components/WorkoutReview'
 import { RecordToast } from '../components/RecordToast'
 import type { PersonalRecord } from '../lib/records'
 import { MET_STRENGTH_TRAINING, estimateCalories } from '../lib/calories'
-import { ArrowLeft, Check, ChevronDown, MessageCircle, RotateCcw } from 'lucide-react'
+import { ArrowLeft, Check, ChevronDown, Clock, MessageCircle, RotateCcw } from 'lucide-react'
 import { linkToItem } from '../db/routines'
 import { applySwaps } from '../db/workoutSwaps'
 import { CoachSheet } from '../components/CoachSheet'
 import { SessionCoachSheet } from '../components/workout/SessionCoachSheet'
 import { SkipReasonSheet } from '../components/workout/SkipReasonSheet'
+import { TimeBudgetSheet } from '../components/workout/TimeBudgetSheet'
+import { estimateMinutes } from '../lib/timeBudget'
 import { restoreExercise, saveSkipped } from '../db/sessionCoach'
 import { SKIP_REASON_LABELS, applyAdjustments, guessSkipReason } from '../lib/sessionIncidents'
 import type { Exercise, RoutineItem, SkipReason } from '../types'
@@ -57,15 +59,21 @@ export function ActiveWorkout() {
     },
     [session, id],
   )
-  const loggedIds = useLiveQuery(
-    async () => new Set((await db.sets.where('sessionId').equals(id).toArray()).map((s) => s.exerciseId)),
+  // Sets logged per exercise in this session.
+  const doneSets = useLiveQuery(
+    async () => {
+      const counts = new Map<number, number>()
+      for (const s of await db.sets.where('sessionId').equals(id).toArray()) counts.set(s.exerciseId, (counts.get(s.exerciseId) ?? 0) + 1)
+      return counts
+    },
     [id],
-    new Set<number>(),
+    new Map<number, number>(),
   )
   const [coachFor, setCoachFor] = useState<{ exercise: Exercise; plan: RoutineItem } | null>(null)
   const [sessionCoachOpen, setSessionCoachOpen] = useState(false)
   const [askingReason, setAskingReason] = useState(false)
   const [showDropped, setShowDropped] = useState(false)
+  const [timeBudgetOpen, setTimeBudgetOpen] = useState(false)
   const [restSeconds, setRestSeconds] = useState(restDurationDefault)
 
   const [record, setRecord] = useState<{ key: number; exerciseName: string; record: PersonalRecord } | null>(null)
@@ -84,7 +92,7 @@ export function ActiveWorkout() {
     const explained = new Set((session.skipped ?? []).map((s) => s.exerciseId))
     return applyAdjustments(exercises, session.adjustments).active
       .map((e) => e.exercise)
-      .filter((e) => !loggedIds.has(e.id!) && !explained.has(e.id!))
+      .filter((e) => !doneSets.has(e.id!) && !explained.has(e.id!))
   }
 
   function handleFinish() {
@@ -115,6 +123,7 @@ export function ActiveWorkout() {
 
   if (!session || !exercises) return null
   const { active, dropped } = applyAdjustments(exercises, session.adjustments)
+  const minutesLeft = estimateMinutes(active, doneSets)
   const skipReason = new Map((session.skipped ?? []).map((s) => [s.exerciseId, s.reason]))
 
   return (
@@ -151,6 +160,16 @@ export function ActiveWorkout() {
           </span>
         </span>
       </button>
+
+      {minutesLeft > 0 && (
+        <button
+          onClick={() => setTimeBudgetOpen(true)}
+          className="mt-2 flex items-center gap-2 self-start px-1 py-1 text-xs text-text-muted hover:text-text"
+        >
+          <Clock size={13} className="text-accent" />
+          ¿Vas justo? Ajusta a tu tiempo · ~{minutesLeft} min
+        </button>
+      )}
 
       <div className="mt-3 flex flex-col gap-3">
         {active.map(({ exercise, plan }) => (
@@ -234,6 +253,10 @@ export function ActiveWorkout() {
           onFinishNow={(reason) => void finishWithReason(reason)}
           onClose={() => setSessionCoachOpen(false)}
         />
+      )}
+
+      {timeBudgetOpen && !finished && (
+        <TimeBudgetSheet sessionId={id} entries={active} doneSets={doneSets} onClose={() => setTimeBudgetOpen(false)} />
       )}
 
       {askingReason && !finished && (
