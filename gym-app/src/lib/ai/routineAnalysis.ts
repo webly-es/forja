@@ -19,7 +19,23 @@ import {
 
 // Analysis of a routine the person built, and changes to it on request.
 
-const ACTION_TYPES = ['add', 'remove', 'replace', 'reorder', 'prescription'] as const
+export const ACTION_TYPES = ['add', 'remove', 'replace', 'reorder', 'prescription'] as const
+
+// One concrete change, as the model returns it (validated with parseAction).
+export const ACTION_SCHEMA = {
+  type: 'object',
+  properties: {
+    type: { type: 'string', enum: ACTION_TYPES },
+    exerciseId: { type: 'number', description: 'Ejercicio de la rutina afectado (remove, replace, reorder, prescription)' },
+    newExerciseId: { type: 'number', description: 'Ejercicio del catálogo que entra (add, replace)' },
+    position: { type: 'number', description: 'Posición 1-based donde queda (add, reorder)' },
+    sets: { type: 'number' },
+    repMin: { type: 'number' },
+    repMax: { type: 'number' },
+    restSeconds: { type: 'number' },
+  },
+  required: ['type'],
+}
 
 const ANALYSIS_SCHEMA = {
   type: 'object',
@@ -35,20 +51,7 @@ const ANALYSIS_SCHEMA = {
         properties: {
           title: { type: 'string', description: 'La mejora en pocas palabras' },
           detail: { type: 'string', description: 'Por qué, una o dos frases' },
-          action: {
-            type: 'object',
-            properties: {
-              type: { type: 'string', enum: ACTION_TYPES },
-              exerciseId: { type: 'number', description: 'Ejercicio de la rutina afectado (remove, replace, reorder, prescription)' },
-              newExerciseId: { type: 'number', description: 'Ejercicio del catálogo que entra (add, replace)' },
-              position: { type: 'number', description: 'Posición 1-based donde queda (add, reorder)' },
-              sets: { type: 'number' },
-              repMin: { type: 'number' },
-              repMax: { type: 'number' },
-              restSeconds: { type: 'number' },
-            },
-            required: ['type'],
-          },
+          action: ACTION_SCHEMA,
         },
         required: ['title', 'detail', 'action'],
       },
@@ -74,7 +77,7 @@ function parsePrescription(raw: Record<string, unknown>): Prescription | undefin
   }
 }
 
-function parseAction(raw: unknown, inRoutine: Set<number>, known: Set<number>): RoutineAction | null {
+export function parseAction(raw: unknown, inRoutine: Set<number>, known: Set<number>): RoutineAction | null {
   if (!raw || typeof raw !== 'object') return null
   const a = raw as Record<string, unknown>
   const exerciseId = Number(a.exerciseId)
