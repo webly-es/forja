@@ -4,38 +4,51 @@ import { Check, RotateCcw, Sparkles } from 'lucide-react'
 import { getTrainingContext, type TrainingContext } from '../../db/routineContext'
 import { getRoutineDraftsForProfile } from '../../db/routines'
 import { useAppStore } from '../../store/useAppStore'
-import { analyzeRoutine, reviseRoutine, type RoutineAnalysis, type RoutineRevision } from '../../lib/ai/routineAnalysis'
-import { applyAction, canApply } from '../../lib/routineDiff'
+import { analyzeRoutine, reviseRoutine, type RoutineRevision } from '../../lib/ai/routineAnalysis'
+import { applyAction, canApply, routineFingerprint } from '../../lib/routineDiff'
+import { shortDate } from '../../lib/format'
 import { SettingsSheet } from '../settings/SettingsSheet'
 import { AiComposer } from '../AiComposer'
 import { RoutineDiff } from './RoutineDiff'
-import type { Exercise, RoutineDraft, RoutineItem } from '../../types'
+import type { Exercise, RoutineDraft, RoutineItem, RoutineReview } from '../../types'
 
 interface RoutineAnalysisSheetProps {
   draft: RoutineDraft
   exercisesById: Map<number, Exercise>
-  onApply: (items: RoutineItem[]) => void
+  // New items (when a change is applied) and the review that goes with them.
+  onChange: (next: { items?: RoutineItem[]; aiReview: RoutineReview }) => void
   onClose: () => void
 }
 
+const MAX_APPLIED = 8
+
+// The review stored with the routine still describes it as it is now.
+const currentReview = (draft: RoutineDraft) =>
+  draft.aiReview && draft.aiReview.fingerprint === routineFingerprint(draft.items) ? draft.aiReview : null
+
 // The coach reviews the routine as it is in the builder; changes go to the draft, never straight to the database.
-export function RoutineAnalysisSheet({ draft, exercisesById, onApply, onClose }: RoutineAnalysisSheetProps) {
+// A routine the coach already reviewed (or designed) and that hasn't changed since shows that review instead of asking again.
+export function RoutineAnalysisSheet({ draft, exercisesById, onChange, onClose }: RoutineAnalysisSheetProps) {
   const navigate = useNavigate()
   const activeProfileId = useAppStore((s) => s.activeProfileId)!
   const geminiApiKey = useAppStore((s) => s.geminiApiKey)
   const geminiModel = useAppStore((s) => s.geminiModel)
 
   const [context, setContext] = useState<{ ctx: TrainingContext; others: RoutineDraft[] } | null>(null)
-  const [analysis, setAnalysis] = useState<RoutineAnalysis | null>(null)
+  const [initialReview] = useState(() => currentReview(draft))
+  const [analysis, setAnalysis] = useState<RoutineReview | null>(initialReview)
+  const [fromBefore, setFromBefore] = useState(initialReview != null)
   const [running, setRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [revision, setRevision] = useState<RoutineRevision | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   // The routine as it was analysed: later edits in the builder don't trigger a new request by themselves.
   const draftRef = useRef(draft)
+  const onChangeRef = useRef(onChange)
   useEffect(() => {
     draftRef.current = draft
-  }, [draft])
+    onChangeRef.current = onChange
+  }, [draft, onChange])
 
   const loadContext = useCallback(async () => {
     const [ctx, others] = await Promise.all([getTrainingContext(activeProfileId), getRoutineDraftsForProfile(activeProfileId)])
@@ -54,8 +67,20 @@ export function RoutineAnalysisSheet({ draft, exercisesById, onApply, onClose }:
     setError(null)
     try {
       const { ctx, others } = await loadContext()
-      const result = await analyzeRoutine(ctx, draftRef.current, others, geminiApiKey, geminiModel, controller.signal)
-      if (!controller.signal.aborted) setAnalysis(result)
+      const current = draftRef.current
+      const result = await analyzeRoutine(ctx, current, others, current.aiReview, geminiApiKey, geminiModel, controller.signal)
+      if (!controller.signal.aborted) {
+        const review: RoutineReview = {
+          ...result,
+          fingerprint: routineFingerprint(current.items),
+          by: 'analysis',
+          at: new Date().toISOString(),
+          applied: current.aiReview?.applied ?? [],
+        }
+        onChangeRef.current({ aiReview: review })
+        setAnalysis(review)
+        setFromBefore(false)
+      }
     } catch (err) {
       if (!controller.signal.aborted) setError(err instanceof Error ? err.message : 'No se pudo analizar la rutina.')
     } finally {
@@ -63,14 +88,27 @@ export function RoutineAnalysisSheet({ draft, exercisesById, onApply, onClose }:
     }
   }, [geminiApiKey, geminiModel, loadContext])
 
-  // Analyse once on open; "Reintentar" runs it again.
+  // Applies a change and records it, so the next analysis knows the coach asked for it.
+  function apply(items: RoutineItem[], change: string) {
+    if (!analysis) return
+    const review = {
+      ...analysis,
+      fingerprint: routineFingerprint(items),
+      applied: [...analysis.applied, change].slice(-MAX_APPLIED),
+    }
+    onChange({ items, aiReview: review })
+    setAnalysis(review)
+  }
+
+  // Analyse once on open unless the stored review still applies; "Analizar otra vez" and "Reintentar" run it again.
   useEffect(() => {
+    if (initialReview) return
     const timer = window.setTimeout(() => void run(), 0)
     return () => {
       window.clearTimeout(timer)
       abortRef.current?.abort()
     }
-  }, [run])
+  }, [run, initialReview])
 
   return (
     <SettingsSheet title="Análisis del entrenador" onClose={onClose}>
@@ -100,6 +138,17 @@ export function RoutineAnalysisSheet({ draft, exercisesById, onApply, onClose }:
       ) : (
         analysis && (
           <>
+            {fromBefore && (
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-accent-muted bg-accent-muted/20 px-3 py-2">
+                <span className="text-xs text-text-muted">
+                  {analysis.by === 'program' ? 'Diseñada por el coach en tu programa' : `Revisada por el coach el ${shortDate(analysis.at)}`}
+                  {' '}· sin cambios desde entonces
+                </span>
+                <button onClick={() => void run()} className="flex shrink-0 items-center gap-1 text-xs text-accent hover:underline">
+                  <RotateCcw size={12} /> Analizar otra vez
+                </button>
+              </div>
+            )}
             <p className="text-sm leading-relaxed text-text">{analysis.verdict}</p>
             {analysis.strengths.length > 0 && (
               <ul className="space-y-1">
@@ -127,7 +176,7 @@ export function RoutineAnalysisSheet({ draft, exercisesById, onApply, onClose }:
                         {s.action &&
                           (applicable ? (
                             <button
-                              onClick={() => onApply(applyAction(draft.items, s.action!))}
+                              onClick={() => apply(applyAction(draft.items, s.action!), s.title)}
                               className="shrink-0 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-bg transition-transform active:scale-[0.97]"
                             >
                               Aplicar
@@ -161,7 +210,10 @@ export function RoutineAnalysisSheet({ draft, exercisesById, onApply, onClose }:
                     </button>
                     <button
                       onClick={() => {
-                        onApply(revision.items.map(({ reason: _reason, ...item }) => item))
+                        apply(
+                          revision.items.map(({ reason: _reason, ...item }) => item),
+                          revision.explanation || 'Cambio pedido por la persona',
+                        )
                         setRevision(null)
                       }}
                       className="flex-1 rounded-lg bg-accent py-2.5 text-sm font-medium text-bg active:scale-[0.97]"

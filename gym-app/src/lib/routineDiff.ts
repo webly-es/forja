@@ -27,8 +27,11 @@ export function canApply(items: RoutineItem[], action: RoutineAction): boolean {
     case 'replace':
       return has(action.exerciseId) && !has(action.newExerciseId)
     case 'remove':
-    case 'prescription':
       return has(action.exerciseId)
+    case 'prescription': {
+      const item = items.find((i) => i.exerciseId === action.exerciseId)
+      return item != null && !samePrescription(item, { ...item, ...stripUndefined(action.prescription) })
+    }
     case 'reorder':
       return has(action.exerciseId) && items.findIndex((i) => i.exerciseId === action.exerciseId) !== action.position - 1
   }
@@ -83,7 +86,7 @@ function longestIncreasing(values: number[]): number[] {
   return best.reduce<number[]>((a, b) => (b.length > a.length ? b : a), [])
 }
 
-const samePrescription =(a: RoutineItem, b: RoutineItem) =>
+const samePrescription = (a: RoutineItem, b: RoutineItem) =>
   a.sets === b.sets && a.repMin === b.repMin && a.repMax === b.repMax && a.restSeconds === b.restSeconds
 
 // What changes between two versions of a routine, in the order of the new one (removed ones last).
@@ -104,4 +107,9 @@ export function diffRoutines(before: RoutineItem[], after: RoutineItem[]): Routi
     if (!newIds.has(item.exerciseId)) changes.push({ exerciseId: item.exerciseId, kind: 'removed', before: item })
   }
   return changes
+}
+
+// Identifies a version of a routine: same exercises, order and prescription give the same string.
+export function routineFingerprint(items: RoutineItem[]): string {
+  return items.map((i) => `${i.exerciseId}:${i.sets ?? ''}x${i.repMin ?? ''}-${i.repMax ?? ''}/${i.restSeconds ?? ''}`).join('|')
 }

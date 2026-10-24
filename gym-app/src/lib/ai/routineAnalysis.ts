@@ -1,5 +1,5 @@
-import type { AiRoutine, AiRoutineItem, RoutineDraft } from '../../types'
-import type { Prescription, RoutineAction } from '../routineDiff'
+import type { AiRoutine, AiRoutineItem, RoutineDraft, RoutineReview, RoutineSuggestion } from '../../types'
+import { routineFingerprint, type Prescription, type RoutineAction } from '../routineDiff'
 import type { TrainingContext } from '../../db/routineContext'
 import { generateJson } from './geminiClient'
 import {
@@ -24,11 +24,12 @@ const ACTION_TYPES = ['add', 'remove', 'replace', 'reorder', 'prescription'] as 
 const ANALYSIS_SCHEMA = {
   type: 'object',
   properties: {
+    needsChanges: { type: 'boolean', description: 'true solo si hay algo que mejora claramente la rutina para su objetivo' },
     verdict: { type: 'string', description: 'Valoración general de la rutina, 2 o 3 frases' },
     strengths: { type: 'array', items: { type: 'string' }, description: 'De 1 a 3 cosas que están bien, cortas' },
     suggestions: {
       type: 'array',
-      description: 'De 0 a 5 mejoras, de la más importante a la menos',
+      description: 'Vacío si needsChanges es false; si no, de 1 a 5 mejoras, de la más importante a la menos',
       items: {
         type: 'object',
         properties: {
@@ -53,13 +54,7 @@ const ANALYSIS_SCHEMA = {
       },
     },
   },
-  required: ['verdict', 'strengths', 'suggestions'],
-}
-
-export interface RoutineSuggestion {
-  title: string
-  detail: string
-  action: RoutineAction | null // null when the model's action didn't make sense
+  required: ['needsChanges', 'verdict', 'strengths', 'suggestions'],
 }
 
 export interface RoutineAnalysis {
@@ -115,20 +110,41 @@ function routineBlock(ctx: TrainingContext, draft: RoutineDraft, others: Routine
   ]
 }
 
+// What the coach already said or designed, so it doesn't undo its own advice on the next look.
+function previousBlock(previous: RoutineReview, draft: RoutineDraft): string[] {
+  const unchanged = previous.fingerprint === routineFingerprint(draft.items)
+  return [
+    previous.by === 'program'
+      ? 'Esta rutina la diseñaste tú mismo en su programa semanal.'
+      : 'Ya revisaste esta rutina antes.',
+    `Tu valoración entonces: ${previous.verdict}`,
+    ...(previous.applied.length
+      ? ['Cambios que aplicó por tu consejo:', ...previous.applied.map((a) => `- ${a}`)]
+      : []),
+    unchanged
+      ? 'No la ha tocado desde entonces.'
+      : 'Después la ha modificado; valora sobre todo lo que ha cambiado.',
+    'Sé coherente con lo que dijiste: no deshagas ni contradigas tus propios cambios ni propongas alternativas equivalentes. ' +
+      'Si sigue bien, needsChanges false y ninguna sugerencia.',
+  ]
+}
+
 export async function analyzeRoutine(
   ctx: TrainingContext,
   draft: RoutineDraft,
   others: RoutineDraft[],
+  previous: RoutineReview | undefined,
   apiKey: string,
   model: string,
   signal?: AbortSignal,
 ): Promise<RoutineAnalysis> {
   const prompt = [
-    'Eres un entrenador personal de musculación. Revisa una rutina que la persona ha creado ella misma y dile qué mejorar.',
+    'Eres un entrenador personal de musculación. Revisa una de sus rutinas y dile si necesita cambios.',
     ...describePerson(ctx),
     '',
     ...routineBlock(ctx, draft, others),
     '',
+    ...(previous ? [...previousBlock(previous, draft), ''] : []),
     'Valora: equilibrio entre músculos y entre empuje y tirón, ejercicios redundantes, orden (básicos antes que aislamiento), ' +
       'volumen por sesión y semanal teniendo en cuenta sus otras rutinas, series y repeticiones para su objetivo, y ejercicios estancados según su historial.',
     ...designRules(ctx),
@@ -138,7 +154,8 @@ export async function analyzeRoutine(
     '- replace: cambia exerciseId por newExerciseId (con su prescripción si conviene otra).',
     '- reorder: mueve exerciseId a position.',
     '- prescription: cambia sets, repMin, repMax y restSeconds de exerciseId.',
-    'Si la rutina ya está bien, dilo y devuelve pocas o ninguna sugerencia; no inventes cambios por cambiar.',
+    'Propón un cambio solo si mejora claramente la rutina para su objetivo; los gustos personales o los ejercicios equivalentes no son mejoras. ' +
+      'Si ya está bien, dilo, needsChanges false y ninguna sugerencia.',
     STYLE,
     '',
     ...describeHistory(ctx),
@@ -146,7 +163,7 @@ export async function analyzeRoutine(
     ...describeCatalog(ctx.catalog),
   ].join('\n')
 
-  const raw = await generateJson<{ verdict?: string; strengths?: unknown[]; suggestions?: Array<Record<string, unknown>> }>(
+  const raw = await generateJson<{ needsChanges?: boolean; verdict?: string; strengths?: unknown[]; suggestions?: Array<Record<string, unknown>> }>(
     [{ text: prompt }],
     ANALYSIS_SCHEMA,
     apiKey,
@@ -160,7 +177,7 @@ export async function analyzeRoutine(
   return {
     verdict,
     strengths: (raw.strengths ?? []).map((s) => String(s).trim()).filter(Boolean).slice(0, 3),
-    suggestions: (raw.suggestions ?? []).slice(0, 5).map((s) => ({
+    suggestions: (raw.needsChanges === false ? [] : (raw.suggestions ?? [])).slice(0, 5).map((s) => ({
       title: String(s.title ?? '').trim(),
       detail: String(s.detail ?? '').trim(),
       action: parseAction(s.action, inRoutine, known),

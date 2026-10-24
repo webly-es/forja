@@ -12,7 +12,7 @@ import { CatalogPicker } from '../components/routines/CatalogPicker'
 import { MuscleBalance } from '../components/routines/MuscleBalance'
 import { SelectedExerciseCard } from '../components/routines/SelectedExerciseCard'
 import { RoutineAnalysisSheet } from '../components/routines/RoutineAnalysisSheet'
-import type { RoutineDraft, RoutineItem } from '../types'
+import type { RoutineDraft, RoutineItem, RoutineReview } from '../types'
 
 export function RoutineBuilder() {
   const { routineId } = useParams()
@@ -67,6 +67,12 @@ export function RoutineBuilder() {
       ;[next[index], next[target]] = [next[target], next[index]]
       return next
     })
+  }
+
+  function onAnalysisChange(next: { items?: RoutineItem[]; aiReview: RoutineReview }) {
+    setDraft((d) => (d ? { ...d, items: next.items ?? d.items, aiReview: next.aiReview } : d))
+    // A plain analysis is kept even if the routine isn't saved again; applied changes wait for Guardar.
+    if (editingId && !next.items) void db.routines.update(editingId, { aiReview: next.aiReview })
   }
 
   async function handleSave() {
@@ -214,7 +220,7 @@ export function RoutineBuilder() {
         <RoutineAnalysisSheet
           draft={{ ...draft, items }}
           exercisesById={exercisesById}
-          onApply={(next) => setItems(() => next)}
+          onChange={onAnalysisChange}
           onClose={() => setAnalyzing(false)}
         />
       )}

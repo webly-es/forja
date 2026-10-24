@@ -16,13 +16,13 @@ export async function getRoutineDraft(routineId: number): Promise<RoutineDraft |
   const routine = await db.routines.get(routineId)
   if (!routine) return undefined
   const links = await db.routineExercises.where('routineId').equals(routineId).sortBy('order')
-  return { id: routine.id, name: routine.name, profileId: routine.profileId, notes: routine.notes, items: links.map(linkToItem) }
+  return { id: routine.id, name: routine.name, profileId: routine.profileId, notes: routine.notes, aiReview: routine.aiReview, items: links.map(linkToItem) }
 }
 
 // Writes the routine and replaces its exercise links. Must run inside a transaction
 // over routines, routineExercises, exercises and seedTombstones.
 async function writeDraft(draft: RoutineDraft): Promise<number> {
-  const fields = { name: draft.name.trim(), profileId: draft.profileId, notes: draft.notes }
+  const fields = { name: draft.name.trim(), profileId: draft.profileId, notes: draft.notes, aiReview: draft.aiReview }
   let id = draft.id
   if (id) {
     const routine = await db.routines.get(id)

@@ -1,6 +1,7 @@
 import type { MuscleGroup } from './lib/muscleGroups'
 import type { MeasurementType } from './lib/measurements'
 import type { MealType } from './lib/meals'
+import type { RoutineAction } from './lib/routineDiff'
 
 export type Sex = 'M' | 'F'
 
@@ -93,6 +94,7 @@ export interface Routine {
   format?: RoutineFormat // undefined = normal routine
   profileId?: number // owner; undefined = shared by every profile
   notes?: string // why the routine is built this way (AI-generated programs)
+  aiReview?: RoutineReview
 }
 
 export interface RoutineExercise {
@@ -121,7 +123,25 @@ export interface RoutineDraft {
   name: string
   profileId?: number
   notes?: string
+  aiReview?: RoutineReview
   items: RoutineItem[]
+}
+
+// The coach's last look at a routine, so a new analysis builds on its own advice instead of redoing it.
+export interface RoutineReview {
+  fingerprint: string // routineFingerprint() of the items as the coach left them
+  by: 'analysis' | 'program' // analysed in the builder, or designed in an AI weekly program
+  at: string
+  verdict: string
+  strengths: string[]
+  suggestions: RoutineSuggestion[]
+  applied: string[] // changes the coach proposed and the person applied, oldest first
+}
+
+export interface RoutineSuggestion {
+  title: string
+  detail: string
+  action: RoutineAction | null // null when the model's action didn't make sense
 }
 
 // A routine proposed by the AI coach, with a short reason per exercise.

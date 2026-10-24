@@ -5,6 +5,7 @@ import { ArrowLeft, RotateCcw, Sparkles } from 'lucide-react'
 import { db } from '../db/db'
 import { getTrainingContext, type TrainingContext } from '../db/routineContext'
 import { saveProgram } from '../db/routines'
+import { routineFingerprint } from '../lib/routineDiff'
 import { useAppStore } from '../store/useAppStore'
 import { generateProgram, reviseProgram, type ProgramRequest } from '../lib/ai/routineCoach'
 import { AiComposer } from '../components/AiComposer'
@@ -79,12 +80,25 @@ export function AiProgram() {
     setSaving(true)
     try {
       await saveProgram(
-        program.days.map((day) => ({
-          name: day.name,
-          profileId: activeProfileId,
-          notes: [program.name, day.focus].filter(Boolean).join('. '),
-          items: day.items.map(({ reason: _reason, ...item }) => item),
-        })),
+        program.days.map((day) => {
+          const items = day.items.map(({ reason: _reason, ...item }) => item)
+          return {
+            name: day.name,
+            profileId: activeProfileId,
+            notes: [program.name, day.focus].filter(Boolean).join('. '),
+            items,
+            // The coach designed it: analysing it untouched shows this instead of a second opinion.
+            aiReview: {
+              fingerprint: routineFingerprint(items),
+              by: 'program' as const,
+              at: new Date().toISOString(),
+              verdict: [day.focus, program.summary].filter(Boolean).join('. '),
+              strengths: [],
+              suggestions: [],
+              applied: [],
+            },
+          }
+        }),
       )
       navigate('/workout/start')
     } finally {
