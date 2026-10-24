@@ -4,6 +4,7 @@ import { MUSCLE_GROUPS } from '../muscleGroups'
 import { formatPrescription } from '../prescription'
 import { describeHistory, describePerson, STYLE } from './routineCoach'
 import { generateJson } from './geminiClient'
+import { SKIP_REASON_LABELS } from '../sessionIncidents'
 
 const REPORT_SCHEMA = {
   type: 'object',
@@ -89,6 +90,23 @@ function describeRoutines(data: TrainingReportData): string[] {
   ]
 }
 
+function describeSkips(data: TrainingReportData): string[] {
+  if (data.skips.length === 0) return []
+  const byId = new Map(data.ctx.catalog.map((e) => [e.id!, e]))
+  const routineName = new Map(data.routines.map((r) => [r.id!, r.name]))
+  return [
+    'Ejercicios que suele dejar sin hacer o a medias (veces / sesiones en que tocaba, motivo más repetido):',
+    ...data.skips.map(
+      (p) =>
+        `- ${byId.get(p.exerciseId)?.name ?? '?'} (${routineName.get(p.routineId) ?? 'rutina'}, rutina ${p.routineId}): ` +
+        `${p.skips} de ${p.sessions}, ${SKIP_REASON_LABELS[p.reason].toLowerCase()}.`,
+    ),
+    'Trátalo como un problema si lo es y propón una acción según el motivo: por falta de tiempo, recortar la rutina o mover el ejercicio antes; ' +
+      'por molestias, sustituirlo por una variante que no moleste; por cansancio o falta de ganas, cambiarlo por una variante o repartir el volumen.',
+    '',
+  ]
+}
+
 export function buildReportPrompt(data: TrainingReportData): string {
   return [
     `Eres un entrenador personal de musculación. Analiza las últimas ${data.weeks.length} semanas de entrenamiento de esta persona ` +
@@ -107,6 +125,7 @@ export function buildReportPrompt(data: TrainingReportData): string {
     '',
     ...describeRoutines(data),
     '',
+    ...describeSkips(data),
     ...describeHistory(data.ctx),
   ].join('\n')
 }

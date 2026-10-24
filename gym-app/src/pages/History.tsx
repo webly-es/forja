@@ -6,6 +6,7 @@ import { getHistoryItems, type HistoryItem } from '../db/history'
 import { getRoutineSummaries, type RoutineSummary } from '../db/queries'
 import { coverUrl } from '../lib/routineCovers'
 import { TrainingReportCard } from '../components/TrainingReportCard'
+import { SkipPatternsCard } from '../components/SkipPatternsCard'
 import { ChevronRight, HeartPulse } from 'lucide-react'
 
 function monthKey(iso: string) {
@@ -79,6 +80,7 @@ export function History() {
       ) : (
         <>
           <TrainingReportCard />
+          <SkipPatternsCard />
 
           <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
             {months.map((m) => (

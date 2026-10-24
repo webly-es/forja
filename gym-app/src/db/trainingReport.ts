@@ -5,6 +5,7 @@ import { getRoutineDraftsForProfile } from './routines'
 import { shiftDateKey, toDateKey, todayKey } from '../lib/dates'
 import { weekStartKey } from '../lib/streak'
 import type { MuscleGroup } from '../lib/muscleGroups'
+import { skipPatterns, type SkipPattern } from '../lib/skipPatterns'
 import type { RoutineDraft, TrainingReport } from '../types'
 
 export const REPORT_WEEKS = 8
@@ -25,6 +26,7 @@ export interface TrainingReportData {
   balance: BalanceDay[] // last 4 weeks, full days only
   weights: SeriesPoint[] // within the report window
   routines: RoutineDraft[]
+  skips: SkipPattern[] // exercises that keep being left out
 }
 
 export async function getTrainingReportData(profileId: number, weeklyGoal: number): Promise<TrainingReportData | undefined> {
@@ -71,7 +73,24 @@ export async function getTrainingReportData(profileId: number, weeklyGoal: numbe
     balance: balance.filter((d) => d.date < today),
     weights: weights.filter((w) => w.date.slice(0, 10) >= firstWeek),
     routines,
+    skips: skipPatterns(ctx.sessions, ctx.sets, routines),
   }
+}
+
+// The same patterns on their own, shown in the report card before any AI call.
+export async function getSkipPatterns(profileId: number): Promise<SkipPattern[]> {
+  const since = new Date(Date.now() - REPORT_WEEKS * 7 * 86_400_000).toISOString()
+  const sessions = await db.workoutSessions
+    .where('profileId')
+    .equals(profileId)
+    .filter((s) => !!s.finishedAt && !s.ladder && s.startedAt >= since)
+    .toArray()
+  if (!sessions.some((s) => s.skipped?.length)) return []
+  const [sets, routines] = await Promise.all([
+    db.sets.where('sessionId').anyOf(sessions.map((s) => s.id!)).toArray(),
+    getRoutineDraftsForProfile(profileId),
+  ])
+  return skipPatterns(sessions, sets, routines)
 }
 
 export function getLatestReport(profileId: number) {
