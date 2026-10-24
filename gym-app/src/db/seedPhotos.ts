@@ -43,11 +43,15 @@ const SEED_PHOTOS: [exerciseName: string, file: string][] = [
   ['Curl de bíceps con mancuernas', 'hombre/curl-mancuernas'],
   ['Curl martillo con mancuernas', 'hombre/curl-martillo'],
   ['Curl predicador en máquina', 'hombre/curl-predicador-maquina'],
+  ['Curl predicador agarre martillo', 'hombre/curl-predicador-maquina'], // his own exercise, same machine
+  ['Curl predicador en máquina agarre martillo', 'hombre/curl-predicador-maquina'],
   ['Curl con barra', 'hombre/curl-barra'],
   ['Curl inclinado con mancuernas', 'hombre/curl-inclinado'],
   ['Curl en polea baja', 'hombre/curl-polea-baja'],
   ['Curl en polea con el codo atrás (bayesiano)', 'hombre/curl-bayesiano'],
   ['Extensión de tríceps en polea con cuerda', 'hombre/triceps-polea-cuerda'],
+  ['Extensión de tríceps en polea', 'hombre/triceps-polea-cuerda'], // his own exercise, same pushdown
+  ['Extensión de tríceps en polea con barra', 'hombre/triceps-polea-cuerda'],
   ['Extensión de tríceps en polea a una mano', 'hombre/triceps-polea-una-mano'],
   ['Fondos de tríceps en máquina', 'hombre/fondos-triceps-maquina'],
   ['Extensión de tríceps sobre la cabeza en polea', 'hombre/triceps-sobre-cabeza'],
